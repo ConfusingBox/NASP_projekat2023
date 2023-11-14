@@ -9,7 +9,7 @@ import (
 )
 
 type BloomFilter struct {
-	BitArray []bool
+	BitArray []byte
 	NumHash  int
 }
 
@@ -38,35 +38,37 @@ func DeserializeBF(data []byte) (*BloomFilter, error) {
 
 func NewBloomFilter(size int, numHash int) *BloomFilter {
 	return &BloomFilter{
-		BitArray: make([]bool, size),
+		BitArray: make([]byte, size),
 		NumHash:  numHash,
 	}
 }
 
 func (bf *BloomFilter) Delete() {
-	bf.BitArray = make([]bool, len(bf.BitArray))
+	bf.BitArray = make([]byte, len(bf.BitArray))
 }
 
-func lookup(bitarray []bool, arrSize int, s string) bool {
+func lookup(bitarray []byte, arrSize int, s string) bool {
 	a := bloomflh1(s, arrSize)
 	b := bloomflh2(s, arrSize)
 	c := bloomflh3(s, arrSize)
 	d := bloomflh4(s, arrSize)
 
-	if bitarray[a] && bitarray[b] && bitarray[c] && bitarray[d] {
+	if bitarray[a]>>7&1 == 1 && bitarray[b]>>7&1 == 1 && bitarray[c]>>7&1 == 1 && bitarray[d]>>7&1 == 1 {
 		return true
 	}
 	return false
 }
 
-func insert(bitarray []bool, arrSize int, s string) {
+func insert(bitarray []byte, arrSize int, s string) {
 	a := bloomflh1(s, arrSize)
 	b := bloomflh2(s, arrSize)
 	c := bloomflh3(s, arrSize)
 	d := bloomflh4(s, arrSize)
 
-	bitarray[a] = true
-	bitarray[b] = true
-	bitarray[c] = true
-	bitarray[d] = true
+	bitarray[a] |= 1 << 7
+	bitarray[b] |= 1 << 7
+	bitarray[c] |= 1 << 7
+	bitarray[d] |= 1 << 7
+	//Kazu kao da |= za razliku od = se koristi kad menjamo samo jedan bit bez druge da ometamo tako nesto
+	// 1 << 7 -> 1 (vrednost koju zelimo da postavimo) << <= (operator za pomeranje ulevo) 7 <= (za 7 pozicija) ==> znaci da se u bajtu 0b00000000 pomeramo 7 mesta ulevo i menjamo taj bit na vrednost 1
 }
