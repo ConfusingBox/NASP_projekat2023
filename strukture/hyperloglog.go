@@ -1,9 +1,10 @@
 package strukture
 
 import (
-	hashfunc "NASP_projekat2023/utils"
 	"bytes"
 	"encoding/gob"
+
+	hashfunc "NASP_projekat2023/utils"
 	"math"
 	"math/bits"
 )
@@ -14,7 +15,7 @@ type HyperLogLog struct {
 }
 
 func NewHyperLogLog(precision int) *HyperLogLog {
-	size := 1 << precision //Shiftujemo size u levo za odredjeni precision, kako bi zauzeli 'precision' mesta u bucketima.
+	size := 1 << precision
 	return &HyperLogLog{precision, make([]int, size)}
 }
 
@@ -47,28 +48,58 @@ func DeserializeHLL(data []byte) (*HyperLogLog, error) {
 	return &hyperloglog, nil
 }
 
-// func (hyperloglog *HyperLogLog) Estimate() float64 {
-//		dodacu ovo
-// }
+func (hyperloglog *HyperLogLog) Estimate() float64 {
+	alpha := getAlpha(hyperloglog.Precision)
+	sumInverse := 0.0
 
-func (hyperloglog *HyperLogLog) Add(item string) {
-	hash1 := hashfunc.Hash1(item, 1<<hyperloglog.Precision)
-	hash2 := hashfunc.Hash2(item, 1<<hyperloglog.Precision)
-	hash3 := hashfunc.Hash3(item, 1<<hyperloglog.Precision)
-	hash4 := hashfunc.Hash4(item, 1<<hyperloglog.Precision)
+	for _, value := range hyperloglog.Registers {
+		sumInverse += 1.0 / math.Pow(2.0, float64(value))
+	}
 
-	hashValue := uint64(hash1 | hash2 | hash3 | hash4)
+	estimate := alpha * float64(len(hyperloglog.Registers)*len(hyperloglog.Registers)) / sumInverse
 
-	index := hashValue & ((1 << hyperloglog.Precision) - 1)
-	leadingZeros := 0
-	for i := uint(63); i >= 0; i-- {
-		if (hashValue & (1 << i)) == 0 {
-			leadingZeros++
-		} else {
-			break
+	if estimate <= 2.5*float64(len(hyperloglog.Registers)) {
+		zeroCount := 0
+
+		for _, value := range hyperloglog.Registers {
+			if value == 0 {
+				zeroCount++
+			}
+		}
+
+		if zeroCount != 0 {
+			correction := linearCountingCorrection(float64(len(hyperloglog.Registers)), float64(zeroCount))
+			estimate = correction
 		}
 	}
-	hyperloglog.Registers[index] = int(math.Max(float64(hyperloglog.Registers[index]), float64(leadingZeros+1)))
+
+	return estimate
+}
+
+func getAlpha(precision int) float64 {
+	const defaultAlpha = 0.7213
+	switch precision {
+	case 4:
+		return defaultAlpha * 0.98
+	case 5:
+		return defaultAlpha * 0.99
+	case 6:
+		return defaultAlpha * 1.01
+	default:
+		return defaultAlpha / math.Pow(2.0, float64(precision))
+	}
+}
+
+func linearCountingCorrection(m, v float64) float64 {
+	return m * math.Log(m/v)
+}
+
+func (hyperloglog *HyperLogLog) Add(item string) {
+	for i := 0; i < 4; i++ {
+		index := int(hashfunc.CustomHash(item, 1<<hyperloglog.Precision, i))
+		leadingZeros := leadingZeroCount(uint64(hashfunc.CustomHash(item, 1<<hyperloglog.Precision, i)))
+		hyperloglog.Registers[index] = int(math.Max(float64(hyperloglog.Registers[index]), float64(leadingZeros)))
+	}
 }
 
 func leadingZeroCount(n uint64) int {

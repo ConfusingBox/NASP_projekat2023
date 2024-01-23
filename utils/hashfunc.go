@@ -1,27 +1,40 @@
 package utils
 
-import "hash/fnv"
+import (
+	"hash/crc32"
+	"hash/fnv"
+)
 
-func Hash1(s string, arrSize int) int {
-	hash := fnv.New32a()
-	hash.Write([]byte(s))
-	return int(hash.Sum32()) % arrSize
+func CustomHash(s string, arrSize, index int) int {
+	hash1 := hash1(s, arrSize)
+	hash2 := hash2(s, arrSize)
+	hash3 := hash3(s, arrSize)
+	hash4 := hash4(s, arrSize)
+
+	combinedHash := (hash1 + index*hash2 + index*index*hash3 + index*index*index*hash4) % arrSize
+	return combinedHash
 }
 
-func Hash2(s string, arrSize int) int {
-	hash := fnv.New32a()
-	hash.Write([]byte(s))
-	return (int(hash.Sum32()) * 2) % arrSize
+func hash1(s string, arrSize int) int {
+	hasher := fnv.New32()
+	hasher.Write([]byte(s))
+	return int(hasher.Sum32()) % arrSize
 }
 
-func Hash3(s string, arrSize int) int {
-	hash := fnv.New32a()
-	hash.Write([]byte(s))
-	return (int(hash.Sum32()) * 3) % arrSize
+func hash2(s string, arrSize int) int {
+	hasher := fnv.New32a()
+	hasher.Write([]byte(s))
+	return int(hasher.Sum32()) % arrSize
 }
 
-func Hash4(s string, arrSize int) int {
-	hash := fnv.New32a()
-	hash.Write([]byte(s))
-	return (int(hash.Sum32()) * 4) % arrSize
+func hash3(s string, arrSize int) int {
+	hasher := crc32.NewIEEE()
+	hasher.Write([]byte(s))
+	return int(hasher.Sum32()) % arrSize
+}
+
+func hash4(s string, arrSize int) int {
+	hasher := fnv.New64()
+	hasher.Write([]byte(s))
+	return int(hasher.Sum64()) % arrSize
 }

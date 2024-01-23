@@ -1,16 +1,17 @@
 package strukture
 
 import (
-	hashfunc "NASP_projekat2023/utils"
 	"bytes"
 	"encoding/gob"
+
+	hashfunc "NASP_projekat2023/utils"
 )
 
 type CountMinSketch struct {
 	Width   int
 	Depth   int
-	Greska  float32 //0<greska<1 sto manje to bolje
-	Gamma   float32 //0<gamma<1 sto vece to bolje
+	Greska  float32 // 0 < greska < 1, Sto je manje bolje je
+	Gamma   float32 // 0 < gamma < 1, Sto je vece bolje je
 	Matrica [][]int
 }
 
@@ -31,12 +32,8 @@ func deleteCountMiNSketch(sketch *CountMinSketch) {
 }
 
 func (countminsketch *CountMinSketch) Add(item string) {
-	hash1 := hashfunc.Hash1(item, countminsketch.Width)
-	hash2 := hashfunc.Hash2(item, countminsketch.Width)
-	hash3 := hashfunc.Hash3(item, countminsketch.Width)
-	hash4 := hashfunc.Hash4(item, countminsketch.Width)
 	for i := 0; i < countminsketch.Depth; i++ {
-		index := (hash1 + i*hash2 + i*i*hash3 + i*i*i*hash4)
+		index := hashfunc.CustomHash(item, countminsketch.Width, i)
 		countminsketch.Matrica[i][index]++
 	}
 }
@@ -65,13 +62,9 @@ func DeserializeCMS(data []byte) (*CountMinSketch, error) {
 }
 
 func (countminsketch *CountMinSketch) Count(item string) int {
-	hash1 := hashfunc.Hash1(item, countminsketch.Width)
-	hash2 := hashfunc.Hash2(item, countminsketch.Width)
-	hash3 := hashfunc.Hash3(item, countminsketch.Width)
-	hash4 := hashfunc.Hash4(item, countminsketch.Width)
 	var pojave int = 0
 	for i := 0; i < countminsketch.Depth; i++ {
-		index := (hash1 + i*hash2 + i*i*hash3 + i*i*i*hash4)
+		index := hashfunc.CustomHash(item, countminsketch.Width, i)
 		pojave += countminsketch.Matrica[i][index]
 	}
 	return pojave
