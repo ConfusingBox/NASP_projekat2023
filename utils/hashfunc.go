@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"hash/crc32"
 	"hash/fnv"
+	"math"
 )
 
 func CustomHash(s string, arrSize, index int) int {
@@ -37,4 +39,21 @@ func hash4(s string, arrSize int) int {
 	hasher := fnv.New64()
 	hasher.Write([]byte(s))
 	return int(hasher.Sum64()) % arrSize
+}
+
+func stringBinaryHash(str string, hashLength int) string {
+	sum := 0
+
+	for i, char := range str {
+		sum += int(char) * int(math.Pow(53, float64(i)))
+	}
+
+	sum %= int(math.Pow(2, float64(hashLength))) - 1
+	hash := fmt.Sprintf("%b", sum)
+
+	for len(hash) != hashLength {
+		hash = "0" + hash
+	}
+
+	return hash
 }
