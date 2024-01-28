@@ -14,6 +14,8 @@ type SimHash struct {
 }
 
 func NewSimHash(data string, hashLength int) *SimHash {
+	// Potrebno je ucitati hashLength iz config.json fajla.
+
 	return &SimHash{data, hashLength, nil}
 }
 

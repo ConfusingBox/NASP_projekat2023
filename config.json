@@ -1,0 +1,10 @@
+{
+    "SimHash_hashLength": 8,
+
+    "SimHash": {
+        "hashLength": 8
+    }
+}
+
+Kad zavrsite neku strukturu, ovdje dodajte sve sto bi korisnik trebao moci podesiti.
+Nismo nista dogovorili za format. Napisao sam dva, pa vi izaberite koji vam je drazi.
