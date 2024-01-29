@@ -5,6 +5,8 @@ import (
 	"encoding/gob"
 	"regexp"
 	"strings"
+
+	hashfunc "NASP_projekat2023/utils"
 )
 
 type SimHash struct {
@@ -35,7 +37,7 @@ func (sh *SimHash) calculateFingerprint() {
 
 	for _, word := range words {
 		word = regexp.MustCompile("[^a-zA-Z0-9 ]+").ReplaceAllString(word, "")
-		hash := stringBinaryHash(word, hashLength)
+		hash := hashfunc.StringBinaryHash(word, hashLength)
 
 		for i := 0; i < hashLength; i++ {
 			if int(hash[i]) == 48 {
