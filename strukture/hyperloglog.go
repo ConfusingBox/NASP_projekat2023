@@ -1,9 +1,8 @@
 package strukture
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/gob"
+	"os"
 
 	hashfunc "NASP_projekat2023/utils"
 	"math"
@@ -26,34 +25,35 @@ func Delete(hll *HyperLogLog) {
 	}
 }
 
-func (HLL *HyperLogLog) SerializeHLL() ([]byte, error) {
-	var buffer bytes.Buffer
-
-	if err := binary.Write(&buffer, binary.BigEndian, HLL.Precision); err != nil {
-		return nil, err
-	}
-
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(HLL)
+func (hyperloglog *HyperLogLog) SerializeHLL(filepath string) error {
+	file, err := os.Create(filepath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return buffer.Bytes(), nil
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	if err := encoder.Encode(hyperloglog); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func DeserializeHLL(data []byte) (*HyperLogLog, error) {
-	var hyperloglog HyperLogLog
-	buffer := bytes.NewBuffer(data)
-
-	if err := binary.Read(buffer, binary.BigEndian, &hyperloglog.Precision); err != nil {
-		return nil, err
-	}
-
-	decoder := gob.NewDecoder(buffer)
-	err := decoder.Decode(&hyperloglog)
+func DeserializeHLL(filepath string) (*HyperLogLog, error) {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
+
+	var hyperloglog HyperLogLog
+	decoder := gob.NewDecoder(file)
+
+	if err := decoder.Decode(&hyperloglog); err != nil {
+		return nil, err
+	}
+
 	return &hyperloglog, nil
 }
 

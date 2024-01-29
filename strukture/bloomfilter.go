@@ -1,10 +1,9 @@
 package strukture
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/gob"
 	"math"
+	"os"
 
 	hashfunc "NASP_projekat2023/utils"
 )
@@ -23,33 +22,32 @@ func NewBloomFilterWithSize(expectedElements int, falsePositiveRate float64) *Bl
 	}
 }
 
-func (bloomfilter *BloomFilter) SerializeBF() ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
+func (bloomfilter *BloomFilter) SerializeBF(filepath string) error {
+	file, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-	err := encoder.Encode(bloomfilter)
+	encoder := gob.NewEncoder(file)
+	if err := encoder.Encode(bloomfilter); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DeserializeBFFromFile(filepath string) (*BloomFilter, error) {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
-	//--- big endian ---
-	result := make([]byte, buffer.Len())
-	binary.BigEndian.PutUint64(result, uint64(buffer.Len()))
-	copy(result[8:], buffer.Bytes())
-	//--- big endian ---
-	return result, nil
-}
-
-func DeserializeBF(data []byte) (*BloomFilter, error) {
 	var bloomfilter BloomFilter
-	//--- big endian ---
-	length := binary.BigEndian.Uint64(data[:8])
-	buffer := bytes.NewBuffer(data[8 : 8+length])
+	decoder := gob.NewDecoder(file)
 
-	decoder := gob.NewDecoder(buffer)
-
-	err := decoder.Decode(&bloomfilter)
-	if err != nil {
+	if err := decoder.Decode(&bloomfilter); err != nil {
 		return nil, err
 	}
 

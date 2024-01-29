@@ -2,10 +2,9 @@ package strukture
 
 import (
 	hashfunc "NASP_projekat2023/utils"
-	"bytes"
-	"encoding/binary"
 	"encoding/gob"
 	"math"
+	"os"
 )
 
 type CountMinSketch struct {
@@ -39,40 +38,35 @@ func (countminsketch *CountMinSketch) Add(item string) {
 	}
 }
 
-func (countminsketch *CountMinSketch) SerializeCMS() ([]byte, error) {
-	var buffer bytes.Buffer
-
-	if err := binary.Write(&buffer, binary.BigEndian, countminsketch.Width); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(&buffer, binary.BigEndian, countminsketch.Depth); err != nil {
-		return nil, err
-	}
-
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(countminsketch)
+func (countminsketch *CountMinSketch) SerializeCMS(filepath string) error {
+	file, err := os.Create(filepath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return buffer.Bytes(), nil
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	if err := encoder.Encode(countminsketch); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func DeserializeCMS(data []byte) (*CountMinSketch, error) {
-	var countminsketch CountMinSketch
-	buffer := bytes.NewBuffer(data)
-
-	if err := binary.Read(buffer, binary.BigEndian, &countminsketch.Width); err != nil {
-		return nil, err
-	}
-	if err := binary.Read(buffer, binary.BigEndian, &countminsketch.Depth); err != nil {
-		return nil, err
-	}
-
-	decoder := gob.NewDecoder(buffer)
-	err := decoder.Decode(&countminsketch)
+func DeserializeCMS(filepath string) (*CountMinSketch, error) {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
+
+	var countminsketch CountMinSketch
+	decoder := gob.NewDecoder(file)
+
+	if err := decoder.Decode(&countminsketch); err != nil {
+		return nil, err
+	}
+
 	return &countminsketch, nil
 }
 
