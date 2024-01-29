@@ -14,7 +14,11 @@ func CustomHash(s string, arrSize, index int) int {
 	hash4 := hash4(s, arrSize)
 
 	combinedHash := (hash1 + index*hash2 + index*index*hash3 + index*index*index*hash4) % arrSize
+	if combinedHash < 0 {
+		combinedHash += arrSize //Ovo osigurava da ne bude negativan idx
+	}
 	return combinedHash
+
 }
 
 func hash1(s string, arrSize int) int {

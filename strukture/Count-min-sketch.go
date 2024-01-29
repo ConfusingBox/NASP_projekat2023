@@ -1,10 +1,11 @@
 package strukture
 
 import (
-	"bytes"
-	"encoding/gob"
-
 	hashfunc "NASP_projekat2023/utils"
+	"bytes"
+	"encoding/binary"
+	"encoding/gob"
+	"math"
 )
 
 type CountMinSketch struct {
@@ -40,8 +41,15 @@ func (countminsketch *CountMinSketch) Add(item string) {
 
 func (countminsketch *CountMinSketch) SerializeCMS() ([]byte, error) {
 	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
 
+	if err := binary.Write(&buffer, binary.BigEndian, countminsketch.Width); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(&buffer, binary.BigEndian, countminsketch.Depth); err != nil {
+		return nil, err
+	}
+
+	encoder := gob.NewEncoder(&buffer)
 	err := encoder.Encode(countminsketch)
 	if err != nil {
 		return nil, err
@@ -52,8 +60,15 @@ func (countminsketch *CountMinSketch) SerializeCMS() ([]byte, error) {
 func DeserializeCMS(data []byte) (*CountMinSketch, error) {
 	var countminsketch CountMinSketch
 	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
 
+	if err := binary.Read(buffer, binary.BigEndian, &countminsketch.Width); err != nil {
+		return nil, err
+	}
+	if err := binary.Read(buffer, binary.BigEndian, &countminsketch.Depth); err != nil {
+		return nil, err
+	}
+
+	decoder := gob.NewDecoder(buffer)
 	err := decoder.Decode(&countminsketch)
 	if err != nil {
 		return nil, err
@@ -62,10 +77,14 @@ func DeserializeCMS(data []byte) (*CountMinSketch, error) {
 }
 
 func (countminsketch *CountMinSketch) Count(item string) int {
-	var pojave int = 0
+	var pojave int = math.MaxInt
+
 	for i := 0; i < countminsketch.Depth; i++ {
 		index := hashfunc.CustomHash(item, countminsketch.Width, i)
-		pojave += countminsketch.Matrica[i][index]
+		if countminsketch.Matrica[i][index] < pojave {
+			pojave = countminsketch.Matrica[i][index]
+		}
 	}
+
 	return pojave
 }

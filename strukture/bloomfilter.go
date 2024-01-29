@@ -2,6 +2,7 @@ package strukture
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"math"
 
@@ -30,18 +31,28 @@ func (bloomfilter *BloomFilter) SerializeBF() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buffer.Bytes(), nil
+
+	//--- big endian ---
+	result := make([]byte, buffer.Len())
+	binary.BigEndian.PutUint64(result, uint64(buffer.Len()))
+	copy(result[8:], buffer.Bytes())
+	//--- big endian ---
+	return result, nil
 }
 
 func DeserializeBF(data []byte) (*BloomFilter, error) {
 	var bloomfilter BloomFilter
-	buffer := bytes.NewBuffer(data)
+	//--- big endian ---
+	length := binary.BigEndian.Uint64(data[:8])
+	buffer := bytes.NewBuffer(data[8 : 8+length])
+
 	decoder := gob.NewDecoder(buffer)
 
 	err := decoder.Decode(&bloomfilter)
 	if err != nil {
 		return nil, err
 	}
+
 	return &bloomfilter, nil
 }
 
