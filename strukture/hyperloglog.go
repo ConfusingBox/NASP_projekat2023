@@ -2,6 +2,7 @@ package strukture
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 
 	hashfunc "NASP_projekat2023/utils"
@@ -27,8 +28,12 @@ func Delete(hll *HyperLogLog) {
 
 func (HLL *HyperLogLog) SerializeHLL() ([]byte, error) {
 	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
 
+	if err := binary.Write(&buffer, binary.BigEndian, HLL.Precision); err != nil {
+		return nil, err
+	}
+
+	encoder := gob.NewEncoder(&buffer)
 	err := encoder.Encode(HLL)
 	if err != nil {
 		return nil, err
@@ -39,8 +44,12 @@ func (HLL *HyperLogLog) SerializeHLL() ([]byte, error) {
 func DeserializeHLL(data []byte) (*HyperLogLog, error) {
 	var hyperloglog HyperLogLog
 	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
 
+	if err := binary.Read(buffer, binary.BigEndian, &hyperloglog.Precision); err != nil {
+		return nil, err
+	}
+
+	decoder := gob.NewDecoder(buffer)
 	err := decoder.Decode(&hyperloglog)
 	if err != nil {
 		return nil, err
@@ -98,10 +107,13 @@ func (hyperloglog *HyperLogLog) Add(item string) {
 	for i := 0; i < 4; i++ {
 		index := int(hashfunc.CustomHash(item, 1<<hyperloglog.Precision, i))
 		leadingZeros := leadingZeroCount(uint64(hashfunc.CustomHash(item, 1<<hyperloglog.Precision, i)))
-		hyperloglog.Registers[index] = int(math.Max(float64(hyperloglog.Registers[index]), float64(leadingZeros)))
+
+		currentValue := float64(hyperloglog.Registers[index])
+		newValue := float64(leadingZeros)
+		alpha := 0.1
+		hyperloglog.Registers[index] = int(alpha*currentValue + (1-alpha)*newValue)
 	}
 }
-
 func leadingZeroCount(n uint64) int {
 	return bits.LeadingZeros64(n) + 1
 }
