@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hash/crc32"
 	"hash/fnv"
@@ -45,7 +46,7 @@ func hash4(s string, arrSize int) int {
 	return int(hasher.Sum64()) % arrSize
 }
 
-func stringBinaryHash(str string, hashLength int) string {
+func StringBinaryHash(str string, hashLength int) string {
 	sum := 0
 
 	for i, char := range str {
@@ -60,4 +61,14 @@ func stringBinaryHash(str string, hashLength int) string {
 	}
 
 	return hash
+}
+
+func Crc32AsBytes(data []byte) []byte {
+	hasher := crc32.NewIEEE()
+	hasher.Write(data)
+	checksum := hasher.Sum32()
+	checksum_bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(checksum_bytes, checksum)
+
+	return checksum_bytes
 }
