@@ -1,10 +1,8 @@
 package strukture
 
 import (
-	"encoding/gob"
-	"os"
-
 	hashfunc "NASP_projekat2023/utils"
+	"encoding/binary"
 	"math"
 	"math/bits"
 )
@@ -25,36 +23,33 @@ func Delete(hll *HyperLogLog) {
 	}
 }
 
-func (hyperloglog *HyperLogLog) SerializeHLL(filepath string) error {
-	file, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := gob.NewEncoder(file)
-	if err := encoder.Encode(hyperloglog); err != nil {
-		return err
+func (hyperloglog *HyperLogLog) SerializeHLL() []byte {
+	sizeBytePrecision := make([]byte, 8)
+	binary.BigEndian.PutUint64(sizeBytePrecision, uint64(hyperloglog.Precision))
+	byteSlice := make([]byte, len(hyperloglog.Registers))
+	for i, v := range hyperloglog.Registers {
+		byteSlice[i] = byte(v)
 	}
 
-	return nil
+	returnArray := append(sizeBytePrecision, byteSlice...)
+
+	return returnArray
 }
 
-func DeserializeHLL(filepath string) (*HyperLogLog, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return nil, err
+func DeserializeHLL(data []byte) (*HyperLogLog, error) {
+	precisionBytes := data[:8]
+	precision := int(binary.BigEndian.Uint64(precisionBytes))
+
+	remainingBytes := data[8:]
+	registerSlice := make([]int, len(remainingBytes))
+	for i, v := range remainingBytes {
+		registerSlice[i] = int(v)
 	}
-	defer file.Close()
+	return &HyperLogLog{
+		Precision: precision,
+		Registers: registerSlice,
+	}, nil
 
-	var hyperloglog HyperLogLog
-	decoder := gob.NewDecoder(file)
-
-	if err := decoder.Decode(&hyperloglog); err != nil {
-		return nil, err
-	}
-
-	return &hyperloglog, nil
 }
 
 func (hyperloglog *HyperLogLog) Estimate() float64 {

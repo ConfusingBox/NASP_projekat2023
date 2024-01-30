@@ -1,9 +1,9 @@
 package strukture
 
 import (
-	"encoding/gob"
+	"bytes"
+	"encoding/binary"
 	"math"
-	"os"
 
 	hashfunc "NASP_projekat2023/utils"
 )
@@ -22,36 +22,32 @@ func NewBloomFilterWithSize(expectedElements int, falsePositiveRate float64) *Bl
 	}
 }
 
-func (bloomfilter *BloomFilter) SerializeBF(filepath string) error {
-	file, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+func SerializeBloomFilter(bf *BloomFilter) []byte {
 
-	encoder := gob.NewEncoder(file)
-	if err := encoder.Encode(bloomfilter); err != nil {
-		return err
-	}
+	sizeByteHash := make([]byte, 8)
+	binary.BigEndian.PutUint64(sizeByteHash, uint64(bf.NumHash))
 
-	return nil
+	returnArray := append(sizeByteHash, bf.BitArray...)
+
+	return returnArray
 }
 
-func DeserializeBFFromFile(filepath string) (*BloomFilter, error) {
-	file, err := os.Open(filepath)
+func DeserializeBloomFilter(data []byte) (*BloomFilter, error) {
+	reader := bytes.NewReader(data[8:])
+	numHashBytes := make([]byte, 8)
+	copy(numHashBytes, data[:8])
+
+	bitArray := make([]byte, len(data)-8)
+	err := binary.Read(reader, binary.BigEndian, &bitArray)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	numHash := binary.BigEndian.Uint64(numHashBytes)
 
-	var bloomfilter BloomFilter
-	decoder := gob.NewDecoder(file)
-
-	if err := decoder.Decode(&bloomfilter); err != nil {
-		return nil, err
-	}
-
-	return &bloomfilter, nil
+	return &BloomFilter{
+		NumHash:  int(numHash),
+		BitArray: bitArray,
+	}, nil
 }
 
 func (bf *BloomFilter) Delete() {

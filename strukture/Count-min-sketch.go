@@ -2,9 +2,8 @@ package strukture
 
 import (
 	hashfunc "NASP_projekat2023/utils"
-	"encoding/gob"
+	"encoding/binary"
 	"math"
-	"os"
 )
 
 type CountMinSketch struct {
@@ -38,36 +37,60 @@ func (countminsketch *CountMinSketch) Add(item string) {
 	}
 }
 
-func (countminsketch *CountMinSketch) SerializeCMS(filepath string) error {
-	file, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+func (countminsketch *CountMinSketch) SerializeCMS(filepath string) ([]byte, error) {
+	widthBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(widthBytes, uint64(countminsketch.Width))
 
-	encoder := gob.NewEncoder(file)
-	if err := encoder.Encode(countminsketch); err != nil {
-		return err
+	depthBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(depthBytes, uint64(countminsketch.Depth))
+
+	greskaBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(greskaBytes, math.Float64bits(float64(countminsketch.Greska)))
+
+	gammaBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(gammaBytes, math.Float64bits(float64(countminsketch.Gamma)))
+
+	matrixBytes := make([]byte, countminsketch.Width*countminsketch.Depth*8)
+	for i := 0; i < countminsketch.Depth; i++ {
+		for j := 0; j < countminsketch.Width; j++ {
+			offset := (i*countminsketch.Width + j) * 8
+			binary.BigEndian.PutUint64(matrixBytes[offset:offset+8], uint64(countminsketch.Matrica[i][j]))
+		}
 	}
 
-	return nil
+	returnArray := append(widthBytes, depthBytes...)
+	returnArray = append(returnArray, greskaBytes...)
+	returnArray = append(returnArray, gammaBytes...)
+	returnArray = append(returnArray, matrixBytes...)
+
+	return returnArray, nil
 }
 
-func DeserializeCMS(filepath string) (*CountMinSketch, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return nil, err
+func DeserializeCMS(data []byte) (*CountMinSketch, error) {
+	width := int(binary.BigEndian.Uint64(data[:8]))
+
+	depth := int(binary.BigEndian.Uint64(data[8:16]))
+
+	greska := math.Float64frombits(binary.BigEndian.Uint64(data[16:24]))
+
+	gamma := math.Float64frombits(binary.BigEndian.Uint64(data[24:32]))
+
+	matrix := make([][]int, depth)
+	for i := 0; i < depth; i++ {
+		matrix[i] = make([]int, width)
+		for j := 0; j < width; j++ {
+			offset := 32 + (i*width+j)*8
+			matrix[i][j] = int(binary.BigEndian.Uint64(data[offset : offset+8]))
+		}
 	}
-	defer file.Close()
 
-	var countminsketch CountMinSketch
-	decoder := gob.NewDecoder(file)
-
-	if err := decoder.Decode(&countminsketch); err != nil {
-		return nil, err
-	}
-
-	return &countminsketch, nil
+	return &CountMinSketch{
+		Width:   width,
+		Depth:   depth,
+		Greska:  float32(greska),
+		Gamma:   float32(gamma),
+		Matrica: matrix,
+	}, nil
 }
 
 func (countminsketch *CountMinSketch) Count(item string) int {
