@@ -29,6 +29,8 @@ type Config struct {
 	SSTableMultipleFiles         bool    `json:"ss_table_multiple_files"`
 	SSTableDirectory             string  `json:"ss_table_directory"`
 	CacheSize                    int     `json:"cache_size"`
+	TokenBucketCapacity          int     `json:"token_bucket_capacity"`
+	TokenBucketLimitSeconds      int     `json:"token_bucket_limit_seconds"`
 }
 
 var DefaultConfig = Config{
