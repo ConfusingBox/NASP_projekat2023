@@ -1,9 +1,12 @@
 package strukture
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 )
 
 // SkipListNode represents a node in the SkipList.
@@ -98,6 +101,54 @@ func (s *SkipList) Print() {
 			fmt.Printf("Key: %s, Value: %s\n", string(n.key), string(n.value))
 		}
 		fmt.Println()
+	}
+}
+
+func SkipListMenu(s *SkipList) {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for {
+		fmt.Println("1. Ubacite element")
+		fmt.Println("2. Pretražite element")
+		fmt.Println("3. Izbrišite element")
+		fmt.Println("4. Prikaži skiplist-u")
+		fmt.Println("x. Izlaz")
+		fmt.Print("Unesite opciju: ")
+
+		choice := strings.TrimSpace(scanner.Text())
+
+		switch choice {
+		case "1":
+			fmt.Print("Unesite ključ: ")
+			key := scanner.Text()
+
+			fmt.Print("Unesite vrednost: ")
+			value := scanner.Text()
+
+			s.Insert([]byte(key), []byte(value))
+		case "2":
+			fmt.Print("Upišite ključ za pretragu: ")
+			key := scanner.Text()
+
+			node := s.Search([]byte(key))
+			if node != nil {
+				fmt.Printf("Ključ %s sa vrednošću %s\n", node.key, node.value)
+			} else {
+				fmt.Printf("Ključ %s nije pronađen\n", key)
+			}
+		case "3":
+			fmt.Print("Unesite ključ za brisanje: ")
+			key := scanner.Text()
+
+			s.Delete([]byte(key))
+			fmt.Printf("Ključ %s je izbrisan.\n", key)
+		case "4":
+			s.Print()
+		case "5":
+			return
+		default:
+			fmt.Println("Pogrešna opcija, pokušajte ponovo")
+		}
 	}
 }
 
