@@ -52,6 +52,9 @@ func StringBinaryHash(str string, hashLength int) string {
 	for i, char := range str {
 		sum += int(char) * int(math.Pow(53, float64(i)))
 	}
+	if sum < 0 {
+		sum = sum * (-1)
+	}
 
 	sum %= int(math.Pow(2, float64(hashLength))) - 1
 	hash := fmt.Sprintf("%b", sum)
