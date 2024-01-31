@@ -3,7 +3,10 @@ package strukture
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
+	"os"
+	"strings"
 
 	hashfunc "NASP_projekat2023/utils"
 )
@@ -77,4 +80,52 @@ func calculateSize(expectedElements int, falsePositiveRate float64) int {
 
 func calculateNumHash(expectedElements, size int) int {
 	return int(math.Ceil((float64(size) / float64(expectedElements)) * math.Log(2)))
+}
+
+func BloomFilterMenu(bf *BloomFilter) {
+	for {
+		fmt.Println("1. Pronadji element")
+		fmt.Println("2. Dodaj element")
+		fmt.Println("3. Obriši sve iz bloomfilter-a")
+		fmt.Println("x. Close")
+
+		var choice string
+		fmt.Print("Unesite opciju: ")
+		fmt.Scan(&choice)
+
+		switch strings.ToLower(choice) {
+		case "1":
+			var key string
+			fmt.Print("Unesite element za pronalazak: ")
+			fmt.Scan(&key)
+			if bf.Lookup(key) {
+				fmt.Println("element je možda pronađen.")
+			} else {
+				fmt.Println("element zasigurno nije pronađen.")
+			}
+		case "2":
+			var key string
+			fmt.Print("Unesite šta želite da ubacite: ")
+			fmt.Scan(&key)
+			bf.Insert(key)
+			fmt.Println("element je dodat u bloomfilter")
+		case "3":
+			var choice2 string
+			fmt.Print("Da li ste sigurni?\n1. Da\n 2. Ne")
+			fmt.Scan(&choice2)
+			switch strings.ToLower(choice2) {
+			case "1":
+				bf.Delete()
+				fmt.Println("Svi elementi u bloomfilter-u su postavljeni na 0")
+			case "2":
+				fmt.Println("Bloomfilter se nije resetovao")
+			default:
+				fmt.Println("Pogrešan unos")
+			}
+		case "x":
+			os.Exit(0)
+		default:
+			fmt.Println("Pogrešan unos")
+		}
+	}
 }

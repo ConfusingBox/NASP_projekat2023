@@ -3,7 +3,10 @@ package strukture
 import (
 	hashfunc "NASP_projekat2023/utils"
 	"encoding/binary"
+	"fmt"
 	"math"
+	"os"
+	"strings"
 )
 
 type CountMinSketch struct {
@@ -104,4 +107,49 @@ func (countminsketch *CountMinSketch) Count(item string) int {
 	}
 
 	return pojave
+}
+
+func CMSMenu(cms *CountMinSketch) {
+	for {
+		fmt.Println("1. Dodaj element")
+		fmt.Println("2. Broj pojavljivanja elementa")
+		fmt.Println("3. Obrisi sve")
+		fmt.Println("x. Zatvori")
+
+		var choice string
+		fmt.Print("Unesite opciju: ")
+		fmt.Scan(&choice)
+
+		switch strings.ToLower(choice) {
+		case "1":
+			var item string
+			fmt.Print("Unesite element za dodavanje: ")
+			fmt.Scan(&item)
+			cms.Add(item)
+			fmt.Println("Element dodat u Count-Min Sketch.")
+		case "2":
+			var item string
+			fmt.Print("Unesite element za pretragu: ")
+			fmt.Scan(&item)
+			count := cms.Count(item)
+			fmt.Printf("Element '%s' se pojavljuje %d puta.\n", item, count)
+		case "3":
+			var choice2 string
+			fmt.Print("Da li ste sigurni?\n1. Da\n2. Ne\n")
+			fmt.Scan(&choice2)
+			switch strings.ToLower(choice2) {
+			case "1":
+				deleteCountMiNSketch(cms)
+				fmt.Println("Sve vrednosti u Count-Min Sketch su postavljene na 0.")
+			case "2":
+				fmt.Println("Count-Min Sketch se nije resetovao.")
+			default:
+				fmt.Println("Pogresan unos.")
+			}
+		case "x":
+			os.Exit(0)
+		default:
+			fmt.Println("Pogresan unos. Molimo pokusajte ponovo.")
+		}
+	}
 }

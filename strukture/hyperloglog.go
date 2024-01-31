@@ -3,8 +3,11 @@ package strukture
 import (
 	hashfunc "NASP_projekat2023/utils"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/bits"
+	"os"
+	"strings"
 )
 
 type HyperLogLog struct {
@@ -111,4 +114,46 @@ func (hyperloglog *HyperLogLog) Add(item string) {
 }
 func leadingZeroCount(n uint64) int {
 	return bits.LeadingZeros64(n) + 1
+}
+
+func HLLMenu(hll *HyperLogLog) {
+	for {
+		fmt.Println("1. Dodaj element")
+		fmt.Println("2. Prikazi procenu kardinalnosti")
+		fmt.Println("3. Obrisi sve")
+		fmt.Println("x. Zatvori")
+
+		var choice string
+		fmt.Print("Unesite opciju: ")
+		fmt.Scan(&choice)
+
+		switch strings.ToLower(choice) {
+		case "1":
+			var item string
+			fmt.Print("Unesite element za dodavanje: ")
+			fmt.Scan(&item)
+			hll.Add(item)
+			fmt.Println("Element dodat u HyperLogLog.")
+		case "2":
+			estimate := hll.Estimate()
+			fmt.Printf("Procenjena kardinalnost: %f\n", estimate)
+		case "3":
+			var choice2 string
+			fmt.Print("Da li ste sigurni?\n1. Da\n2. Ne\n")
+			fmt.Scan(&choice2)
+			switch strings.ToLower(choice2) {
+			case "1":
+				Delete(hll)
+				fmt.Println("Sve vrednosti u HyperLogLog su postavljene na 0.")
+			case "2":
+				fmt.Println("HyperLogLog se nije resetovao.")
+			default:
+				fmt.Println("Pogresan unos.")
+			}
+		case "x":
+			os.Exit(0)
+		default:
+			fmt.Println("Pogresan unos. Molimo pokusajte ponovo.")
+		}
+	}
 }
