@@ -1,5 +1,6 @@
 package utils
 
+<<<<<<< Updated upstream
 import (
 	"encoding/json"
 	"os"
@@ -111,3 +112,38 @@ func LoadConfig(filepath string) (*Config, error) {
 
 	return &config, err
 }
+=======
+type Config struct {
+	bloomFilterFalsePositiveRate float32 `json: "bloom_filter_false_positive_rate"`
+	bloomFilterExpectedElemets   uint32  `json: "bloom_filter_expected_elements"`
+	skipListDepth                uint32  `json: "skip_list_depth"`
+	hyperLogLogPrecision         uint32  `json: "hyperloglog_precision`
+}
+
+/*
+bloom_filter_probability: 0.1,
+bloom_filter_cap: 1_000_000,
+skip_list_max_level: 10,
+hyperloglog_precision: 10,
+write_ahead_log_dir: "./wal/".to_string(),
+write_ahead_log_num_of_logs: 1000,
+write_ahead_log_size: 1048576,
+b_tree_order: 10,
+memory_table_capacity: 1000,
+memory_table_type: MemoryTableType::SkipList,
+memory_table_pool_num: 10,
+summary_density: 3,
+index_density: 2,
+sstable_single_file: false,
+sstable_dir: "./sstables/".to_string(),
+lsm_max_level: 0,
+lsm_max_per_level: 0,
+compaction_enabled: false,
+compaction_algorithm_type: CompactionAlgorithmType::SizeTiered,
+cache_max_size: 0,
+token_bucket_num: 0,
+token_bucket_interval: 0,
+use_compression: false,
+compression_dictionary_path: "./dictionary.bin".to_string(),
+*/
+>>>>>>> Stashed changes

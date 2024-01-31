@@ -1,10 +1,18 @@
 {
-    "SimHash_hashLength": 8,
-
-    "SimHash": {
-        "hashLength": 8
-    }
+    "bloom_filter_false_positive_rate": 0.2,
+    "bloom_filter_expected_elements": 50000,
+    "skip_list_depth": 10,
+    "hyperloglog_precision": 10,
+    "wal_directory": "data/log",
+    "wal_buffer_size": 100,
+    "wal_segment_size": 1024,
+    "btree_degree": 10,
+    "mem_table_size": 10000,
+    "mem_table_type": "skip_list",
+    "mem_pool_size": 10,
+    "summary_density": 5,
+    "index_density": 5,
+    "ss_table_multiple_files": true,
+    "ss_table_directory": "data/sstable",
+    "cache_size": 20
 }
-
-Kad zavrsite neku strukturu, ovdje dodajte sve sto bi korisnik trebao moci podesiti.
-Nismo nista dogovorili za format. Napisao sam dva, pa vi izaberite koji vam je drazi.
