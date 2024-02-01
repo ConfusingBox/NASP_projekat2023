@@ -100,7 +100,7 @@ func (s *SkipList) Delete(key []byte) bool {
 func (s *SkipList) Print() {
 	for node := s.head; node != nil; node = node.down {
 		for n := node; n != nil; n = n.right {
-			fmt.Printf("Key: %s, Value: %s\n", string(n.key), string(n.entry.Value))
+			fmt.Printf("Key: %s, Value: %s, Timestamp: %s, Tombstone: %v\n", string(n.key), string(n.entry.Value), n.entry.Timestamp, n.entry.Tombstone)
 		}
 		fmt.Println()
 	}

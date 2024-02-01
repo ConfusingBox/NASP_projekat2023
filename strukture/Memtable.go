@@ -7,7 +7,7 @@ package strukture
 
 import (
 	"errors"
-	"sort"
+	"fmt"
 	"time"
 
 	config "NASP_projekat2023/utils"
@@ -94,18 +94,17 @@ func (mt *Memtable) InsertSkipList(entry *MemtableEntry) error {
 	return errors.New("Same key already here lol")
 }
 
-/*
-	func (mt *Memtable) InsertBTree(entry *MemtableEntry) error {
-		err := mt.dataBTree.Insert(entry)
+func (mt *Memtable) InsertBTree(entry *MemtableEntry) error {
+	err := mt.dataBTree.Insert(*entry)
 
-		if err != nil {
-			return err
-		}
-
-		mt.currentSize += 1
-		return nil
+	if err != nil {
+		return err
 	}
-*/
+
+	mt.currentSize += 1
+	return nil
+}
+
 func (mt *Memtable) InsertHashMap(entry *MemtableEntry) error {
 	_, exist := mt.dataHashMap[string(entry.Key)]
 
@@ -139,15 +138,12 @@ func (mt *Memtable) DeleteSkipList(key []byte) error {
 
 	if success {
 		mt.currentSize--
+	}
 
-	} else {
-		err := mt.Insert(EmptyMemtableEntry(key))
+	err := mt.Insert(EmptyMemtableEntry(key))
 
-		if err != nil {
-			return err
-		}
-
-		mt.currentSize++
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -158,15 +154,12 @@ func (mt *Memtable) DeleteBTree(key []byte) error {
 
 	if success {
 		mt.currentSize--
+	}
 
-	} else {
-		err := mt.Insert(EmptyMemtableEntry(key))
+	err := mt.Insert(EmptyMemtableEntry(key))
 
-		if err != nil {
-			return err
-		}
-
-		mt.currentSize++
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -178,15 +171,12 @@ func (mt *Memtable) DeleteHashMap(key []byte) error {
 	if exist {
 		delete(mt.dataHashMap, string(key))
 		mt.currentSize--
+	}
 
-	} else {
-		err := mt.Insert(EmptyMemtableEntry(key))
+	err := mt.Insert(EmptyMemtableEntry(key))
 
-		if err != nil {
-			return err
-		}
-
-		mt.currentSize++
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -219,13 +209,13 @@ func (mt *Memtable) GetSkipList(key []byte) ([]byte, error) {
 }
 
 func (mt *Memtable) GetBTree(key []byte) ([]byte, error) {
-	value, exist := mt.dataBTree.Search(key)
+	entry, exist := mt.dataBTree.Search(key)
 
 	if !exist {
 		return nil, errors.New("Zapis ne postoji.")
 	}
 
-	return value, nil
+	return entry.Value, nil
 }
 
 func (mt *Memtable) GetHashMap(key []byte) ([]byte, error) {
@@ -238,52 +228,96 @@ func (mt *Memtable) GetHashMap(key []byte) ([]byte, error) {
 	return value.Value, nil
 }
 
-func (mt *Memtable) Flush(bloomfilter *BloomFilter, filename string) error {
-	// Poziva se kada treshold >= size. (Moze li biti vece ili mora striktno jednako?
+func (mt *Memtable) PrintMemtable() {
+	fmt.Print("\n", mt.threshold, " ", mt.size, " ", mt.currentSize, "\n")
+
 	if mt.dataType == "hash_map" {
-		keysToFlush := make([]string, 0)
-		for key := range mt.dataHashMap {
-			keysToFlush = append(keysToFlush, key)
-		}
-		sort.Strings(keysToFlush)
-
-		for _, key := range keysToFlush {
-			bloomfilter.Insert(key)
-
+		for index, data := range mt.dataHashMap {
+			fmt.Print("\n", index, ": ", data)
 		}
 	}
 	if mt.dataType == "skip_list" {
-		keysToFlush := make([]string, 0)
-		node := mt.dataSkipList.head
-		for node != nil {
-			keysToFlush = append(keysToFlush, string(node.key))
-			node = node.down
-		}
-		sort.Strings(keysToFlush)
-
-		for _, key := range keysToFlush {
-			bloomfilter.Insert(key)
-		}
-		return nil
+		mt.dataSkipList.Print()
 	}
 	if mt.dataType == "b_tree" {
-		// pairs := mt.dataBTree.InOrder(mt.dataBTree.root)
-		keyValuePairs := mt.dataBTree.InOrder(mt.dataBTree.root)
-		keysOnly := make([][]byte, len(keyValuePairs))
-		for i, pair := range keyValuePairs {
-			keysOnly[i] = pair[0]
+		mt.dataBTree.PrintTree(mt.dataBTree.root, 1)
+	}
+}
+
+// func (mt *Memtable) Flush(bloomfilter *BloomFilter, filename string) error {
+func (mt *Memtable) Flush() error {
+	/*
+		// Poziva se kada treshold >= size. (Moze li biti vece ili mora striktno jednako?
+		if mt.dataType == "hash_map" {
+			keysToFlush := make([]string, 0)
+			for key := range mt.dataHashMap {
+				keysToFlush = append(keysToFlush, key)
+			}
+			sort.Strings(keysToFlush)
+
+			for _, key := range keysToFlush {
+				bloomfilter.Insert(key)
+
+			}
 		}
-		for i := range keysOnly {
-			bloomfilter.Insert(string(keysOnly[i]))
+		if mt.dataType == "skip_list" {
+			keysToFlush := make([]string, 0)
+			node := mt.dataSkipList.head
+			for node != nil {
+				keysToFlush = append(keysToFlush, string(node.key))
+				node = node.down
+			}
+			sort.Strings(keysToFlush)
+
+			for _, key := range keysToFlush {
+				bloomfilter.Insert(key)
+			}
+			return nil
+		}
+		if mt.dataType == "b_tree" {
+			// pairs := mt.dataBTree.InOrder(mt.dataBTree.root)
+			keyValuePairs := mt.dataBTree.InOrder(mt.dataBTree.root)
+			keysOnly := make([][]byte, len(keyValuePairs))
+			for i, pair := range keyValuePairs {
+				keysOnly[i] = pair[0]
+			}
+			for i := range keysOnly {
+				bloomfilter.Insert(string(keysOnly[i]))
+			}
+			return nil
 		}
 		return nil
-	}
-	return nil
+	*/
 
+	return nil
 }
 
 /*
-func initializeMemtable() {
-	// Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a.
+func main() {
+	mt, err := NewMemtable()
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	mt.dataType = "hash_map"
+
+	mt.Insert([]byte("a"), []byte("aaa"), false)
+	mt.Insert([]byte("b"), []byte("bbb"), false)
+	mt.Insert([]byte("c"), []byte("ccc"), false)
+	mt.Insert([]byte("d"), []byte("ddd"), false)
+	mt.Insert([]byte("e"), []byte("eee"), false)
+
+	mt.PrintMemtable()
+
+	mt.Delete([]byte("a"))
+	mt.Delete([]byte("f"))
+
+	mt.PrintMemtable()
+
+	data1, err := mt.Get([]byte("a"))
+	fmt.Print("\n", data1)
+
+	data2, err := mt.Get([]byte("f"))
+	fmt.Print("\n", data2)
 }
 */

@@ -30,18 +30,18 @@ type BTree struct {
 }
 
 // NewBTree creates a new B-Tree.
-func NewBTree(t int) (*BTree, error) {
-	if t < 2 {
-		return nil, fmt.Errorf("t must be greater than or equal to 2")
-	}
+func NewBTree(t int) *BTree {
 	return &BTree{
 		root: NewNode(t, false), // Create a new root node which is not a leaf node.
 		t:    t,                 // Set the degree of the B-Tree.
-	}, nil
+	}
 }
 
 // Insert inserts a key-value pair into the B-Tree.
-func (t *BTree) Insert(k []byte, v MemtableEntry) error {
+func (t *BTree) Insert(entry MemtableEntry) error {
+	k := entry.Key
+	v := entry
+
 	// Check if the key already exists in the tree
 	_, found := t.Search(k)
 	if found {
@@ -202,11 +202,11 @@ func (t *BTree) searchInNode(x *BTreeNode, k []byte) (MemtableEntry, bool) {
 }
 
 // Delete deletes a key from the B-Tree.
-func (t *BTree) Delete(k []byte) error {
+func (t *BTree) Delete(k []byte) bool {
 	// Check if the key exists in the tree
 	_, found := t.Search(k)
 	if !found {
-		return fmt.Errorf("key does not exist in the tree")
+		return false
 	}
 	// Delete the key from the tree
 	t.deleteNode(t.root, k)
@@ -217,7 +217,7 @@ func (t *BTree) Delete(k []byte) error {
 	} else if len(t.root.keys) == 0 {
 		t.root = NewNode(t.t, true)
 	}
-	return nil
+	return true
 }
 
 func (t *BTree) deleteNode(x *BTreeNode, k []byte) {
