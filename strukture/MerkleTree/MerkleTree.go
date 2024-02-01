@@ -1,11 +1,13 @@
 package strukture
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -33,10 +35,37 @@ func (mr *MerkleTree) AddElement(el []byte) {
 	mr.elements = append(mr.elements, el)
 }
 
-func (mr *MerkleTree) CreateTree() {
+func (mr *MerkleTree) CreateTree(folderPath string) {
+	files, err := ioutil.ReadDir(folderPath)
+	if err != nil {
+		panic(err)
+	}
+
+	var fileContents [][]byte
+
+	for _, file := range files {
+		if !file.IsDir() {
+			content, err := ioutil.ReadFile(filepath.Join(folderPath, file.Name()))
+			if err != nil {
+				panic(err)
+			}
+			fileContents = append(fileContents, content)
+		}
+	}
+
+	sort.Slice(fileContents, func(i, j int) bool {
+		return bytes.Compare(fileContents[i], fileContents[j]) < 0
+	})
+
+	mr.elements = fileContents
 	mr.buildLeaves()
 	mr.buildInternalNodes()
 }
+
+// func (mr *MerkleTree) CreateTree() {
+// 	mr.buildLeaves()
+// 	mr.buildInternalNodes()
+// }
 
 func (mr *MerkleTree) buildLeaves() {
 	for _, el := range mr.elements {
@@ -70,8 +99,8 @@ func (mr *MerkleTree) buildInternalNodes() {
 	mr.root = queue[0]
 }
 
-func (mr *MerkleTree) SerializeTree(gen, lvl int) {
-	file, err := os.OpenFile(fmt.Sprintf("DataBase.db", lvl, gen), os.O_WRONLY|os.O_CREATE, 0777)
+func (mr *MerkleTree) SerializeTree(FILEPATH string) {
+	file, err := os.OpenFile(filepath.Join(FILEPATH), os.O_WRONLY|os.O_CREATE, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -90,8 +119,8 @@ func (mr *MerkleTree) SerializeTree(gen, lvl int) {
 	}
 }
 
-func ReconstructTree(gen, lvl int) *MerkleTree {
-	file, err := os.OpenFile(fmt.Sprintf("DataBase.db", lvl, gen), os.O_RDONLY, 0777)
+func ReconstructTree(FILEPATH string) *MerkleTree {
+	file, err := os.OpenFile(filepath.Join(FILEPATH), os.O_RDONLY, 0777)
 	if err != nil {
 		panic(err)
 	}
