@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -36,7 +36,7 @@ func (mr *MerkleTree) AddElement(el []byte) {
 }
 
 func (mr *MerkleTree) CreateTree(folderPath string) {
-	files, err := ioutil.ReadDir(folderPath)
+	files, err := os.ReadDir(folderPath)
 	if err != nil {
 		panic(err)
 	}
@@ -45,7 +45,7 @@ func (mr *MerkleTree) CreateTree(folderPath string) {
 
 	for _, file := range files {
 		if !file.IsDir() {
-			content, err := ioutil.ReadFile(filepath.Join(folderPath, file.Name()))
+			content, err := os.ReadFile(filepath.Join(folderPath, file.Name()))
 			if err != nil {
 				panic(err)
 			}
@@ -124,7 +124,7 @@ func ReconstructTree(FILEPATH string) *MerkleTree {
 	if err != nil {
 		panic(err)
 	}
-	content, err := ioutil.ReadAll(file)
+	content, err := io.ReadAll(file)
 
 	keys := strings.Split(string(content), "|")
 	keys = keys[:len(keys)-1]
