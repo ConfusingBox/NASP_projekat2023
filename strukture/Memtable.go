@@ -7,6 +7,7 @@ package strukture
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	config "NASP_projekat2023/utils"
@@ -237,9 +238,48 @@ func (mt *Memtable) GetHashMap(key []byte) ([]byte, error) {
 	return value.Value, nil
 }
 
-func (mt *Memtable) Flush() error {
+func (mt *Memtable) Flush(bloomfilter *BloomFilter, filename string) error {
 	// Poziva se kada treshold >= size. (Moze li biti vece ili mora striktno jednako?
+	if mt.dataType == "hash_map" {
+		keysToFlush := make([]string, 0)
+		for key := range mt.dataHashMap {
+			keysToFlush = append(keysToFlush, key)
+		}
+		sort.Strings(keysToFlush)
+
+		for _, key := range keysToFlush {
+			bloomfilter.Insert(key)
+
+		}
+	}
+	if mt.dataType == "skip_list" {
+		keysToFlush := make([]string, 0)
+		node := mt.dataSkipList.head
+		for node != nil {
+			keysToFlush = append(keysToFlush, string(node.key))
+			node = node.down
+		}
+		sort.Strings(keysToFlush)
+
+		for _, key := range keysToFlush {
+			bloomfilter.Insert(key)
+		}
+		return nil
+	}
+	if mt.dataType == "b_tree" {
+		// pairs := mt.dataBTree.InOrder(mt.dataBTree.root)
+		keyValuePairs := mt.dataBTree.InOrder(mt.dataBTree.root)
+		keysOnly := make([][]byte, len(keyValuePairs))
+		for i, pair := range keyValuePairs {
+			keysOnly[i] = pair[0]
+		}
+		for i := range keysOnly {
+			bloomfilter.Insert(string(keysOnly[i]))
+		}
+		return nil
+	}
 	return nil
+
 }
 
 /*
