@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	config "NASP_projekat2023/utils"
 	hashfunc "NASP_projekat2023/utils"
 )
 
@@ -16,19 +17,23 @@ type SimHash struct {
 	fingerprint []int
 }
 
-func NewSimHash(data string, hashLength int) *SimHash {
-	// Potrebno je ucitati hashLength iz config.json fajla.
+func NewSimHash(data string) (*SimHash, error) {
+	config, err := config.LoadConfig("config.json")
+	if err != nil {
+		return nil, err
+	}
 
-	return &SimHash{data, hashLength, nil}
+	return &SimHash{data, config.SimHashHashSize, nil}, nil
 }
 
-func NewSimHashWithFingerprint(data string, hashLength int) *SimHash {
+func NewSimHashWithFingerprint(data string, hashLength int) (*SimHash, error) {
 	// Vraca SimHash u kojem je fingerprint vec izracunat
 
-	sh := NewSimHash(data, hashLength)
+	sh, err := NewSimHash(data)
+
 	sh.calculateFingerprint()
 
-	return sh
+	return sh, err
 }
 
 func (sh *SimHash) calculateFingerprint() {

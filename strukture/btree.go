@@ -2,6 +2,7 @@ package strukture
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 )
 
@@ -38,12 +39,11 @@ func NewBTree(t int) *BTree {
 }
 
 // Insert inserts a key-value pair into the B-Tree.
-func (t *BTree) Insert(k, v []byte) {
+func (t *BTree) Insert(k, v []byte) error {
 	// Check if the key already exists in the tree
 	_, found := t.Search(k)
 	if found {
-		fmt.Println("Key already exists in the tree.")
-		return
+		return errors.New("Key already exists in the tree.")
 	}
 
 	root := t.root
@@ -52,7 +52,7 @@ func (t *BTree) Insert(k, v []byte) {
 		root.keys = append(root.keys, k)
 		root.values = append(root.values, v)
 		root.leaf = true
-		return
+		return nil
 	}
 	// If the root is full, split the root and insert the key-value pair
 	if len(root.keys) == (2*t.t - 1) {
@@ -68,6 +68,7 @@ func (t *BTree) Insert(k, v []byte) {
 	if len(root.childPtr) > 0 {
 		root.leaf = false
 	}
+	return nil
 }
 
 // insertNonFull inserts a key-value pair into a non-full node.
@@ -194,12 +195,11 @@ func (t *BTree) searchInNode(x *BTreeNode, k []byte) ([]byte, bool) {
 }
 
 // Delete deletes a key from the B-Tree.
-func (t *BTree) Delete(k []byte) {
+func (t *BTree) Delete(k []byte) bool {
 	// Check if the key exists in the tree
 	_, found := t.Search(k)
 	if !found {
-		fmt.Println("Ključ ne postoji u stablu.")
-		return
+		return false
 	}
 	// Delete the key from the tree
 	t.deleteNode(t.root, k)
@@ -210,6 +210,7 @@ func (t *BTree) Delete(k []byte) {
 	} else if len(t.root.keys) == 0 {
 		t.root = NewNode(t.t, true)
 	}
+	return true
 }
 
 // deleteNode deletes a key from a node in the B-Tree.
