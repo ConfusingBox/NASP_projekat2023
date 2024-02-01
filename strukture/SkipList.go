@@ -12,7 +12,7 @@ import (
 // SkipListNode represents a node in the SkipList.
 type SkipListNode struct {
 	key   []byte        // The key stored in the node.
-	value []byte        // The value associated with the key.
+	entry MemtableEntry // The value associated with the key.
 	right *SkipListNode // Pointer to the next node in the same level.
 	down  *SkipListNode // Pointer to the node below in the next level.
 	level int           // The level of the node.
@@ -43,14 +43,14 @@ func (s *SkipList) roll() int {
 }
 
 // Insert inserts a key-value pair into the SkipList.
-func (s *SkipList) Insert(key []byte, value []byte) {
+func (s *SkipList) Insert(entry MemtableEntry) {
 	level := s.roll()
-	newNode := &SkipListNode{key: key, value: value, level: level}
+	newNode := &SkipListNode{key: entry.Key, entry: entry, level: level}
 	if s.head == nil {
 		s.head = newNode
 	} else {
 		node := s.head
-		for node.right != nil && bytes.Compare(node.right.key, key) < 0 {
+		for node.right != nil && bytes.Compare(node.right.key, entry.Key) < 0 {
 			node = node.right
 		}
 		newNode.right = node.right
@@ -100,7 +100,7 @@ func (s *SkipList) Delete(key []byte) bool {
 func (s *SkipList) Print() {
 	for node := s.head; node != nil; node = node.down {
 		for n := node; n != nil; n = n.right {
-			fmt.Printf("Key: %s, Value: %s\n", string(n.key), string(n.value))
+			fmt.Printf("Key: %s, Value: %s\n", string(n.key), string(n.entry.Value))
 		}
 		fmt.Println()
 	}
@@ -127,14 +127,15 @@ func SkipListMenu(s *SkipList) {
 			fmt.Print("Unesite vrednost: ")
 			value := scanner.Text()
 
-			s.Insert([]byte(key), []byte(value))
+			entry := NewMemtableEntry([]byte(key), []byte(value), false)
+			s.Insert(*entry)
 		case "2":
 			fmt.Print("Upišite ključ za pretragu: ")
 			key := scanner.Text()
 
 			node := s.Search([]byte(key))
 			if node != nil {
-				fmt.Printf("Ključ %s sa vrednošću %s\n", node.key, node.value)
+				fmt.Printf("Ključ %s sa vrednošću %s\n", node.key, node.entry.Value)
 			} else {
 				fmt.Printf("Ključ %s nije pronađen\n", key)
 			}
