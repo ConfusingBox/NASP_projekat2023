@@ -2,16 +2,15 @@ package strukture
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 )
 
 // BTreeNode represents a node in the B-Tree.
 type BTreeNode struct {
-	leaf     bool         // Indicates whether the node is a leaf node.
-	keys     [][]byte     // The keys stored in the node.
-	values   [][]byte     // The values associated with the keys.
-	childPtr []*BTreeNode // Pointers to the child nodes.
+	leaf     bool            // Indicates whether the node is a leaf node.
+	keys     [][]byte        // The keys stored in the node.
+	values   []MemtableEntry // The values associated with the keys.
+	childPtr []*BTreeNode    // Pointers to the child nodes.
 }
 
 // NewNode creates a new B-Tree node.
@@ -19,7 +18,7 @@ func NewNode(t int, leaf bool) *BTreeNode {
 	return &BTreeNode{
 		leaf:     leaf,                       // Set whether the node is a leaf node.
 		keys:     make([][]byte, 0),          // Initialize the keys slice.
-		values:   make([][]byte, 0),          // Initialize the values slice.
+		values:   make([]MemtableEntry, 0),   // Initialize the values slice.
 		childPtr: make([]*BTreeNode, 0, 2*t), // Initialize the child pointers slice with capacity 2*t.
 	}
 }
@@ -31,19 +30,22 @@ type BTree struct {
 }
 
 // NewBTree creates a new B-Tree.
-func NewBTree(t int) *BTree {
+func NewBTree(t int) (*BTree, error) {
+	if t < 2 {
+		return nil, fmt.Errorf("t must be greater than or equal to 2")
+	}
 	return &BTree{
 		root: NewNode(t, false), // Create a new root node which is not a leaf node.
 		t:    t,                 // Set the degree of the B-Tree.
-	}
+	}, nil
 }
 
 // Insert inserts a key-value pair into the B-Tree.
-func (t *BTree) Insert(k, v []byte) error {
+func (t *BTree) Insert(k []byte, v MemtableEntry) error {
 	// Check if the key already exists in the tree
 	_, found := t.Search(k)
 	if found {
-		return errors.New("Key already exists in the tree.")
+		return fmt.Errorf("key already exists in the tree")
 	}
 
 	root := t.root
@@ -72,12 +74,12 @@ func (t *BTree) Insert(k, v []byte) error {
 }
 
 // insertNonFull inserts a key-value pair into a non-full node.
-func (t *BTree) insertNonFull(x *BTreeNode, k, v []byte) {
+func (t *BTree) insertNonFull(x *BTreeNode, k []byte, v MemtableEntry) {
 	i := len(x.keys) - 1
 	// If the node is a leaf, insert the key-value pair into the correct position
 	if x.leaf {
 		x.keys = append(x.keys, nil)
-		x.values = append(x.values, nil)
+		x.values = append(x.values, MemtableEntry{})
 		for i >= 0 && bytes.Compare(k, x.keys[i]) < 0 {
 			x.keys[i+1] = x.keys[i]
 			x.values[i+1] = x.values[i]
@@ -121,7 +123,7 @@ func (t *BTree) splitChild(x *BTreeNode, i int) {
 	copy(x.childPtr[i+2:], x.childPtr[i+1:])
 	x.childPtr[i+1] = z
 	x.keys = append(x.keys, nil)
-	x.values = append(x.values, nil)
+	x.values = append(x.values, MemtableEntry{})
 	copy(x.keys[i+1:], x.keys[i:])
 	copy(x.values[i+1:], x.values[i:])
 	x.keys[i] = y.keys[tt-1]
@@ -148,7 +150,12 @@ func (t *BTree) PrintTree(x *BTreeNode, l int) {
 		keys[i] = string(v)
 	}
 	for i, v := range x.values {
-		values[i] = string(v)
+		if v.Key == nil && v.Value == nil && v.Timestamp.IsZero() && !v.Tombstone {
+			values[i] = "nil"
+		} else {
+			values[i] = fmt.Sprintf("Key: %s, Value: %s, Timestamp: %v, Tombstone: %v",
+				string(v.Key), string(v.Value), v.Timestamp, v.Tombstone)
+		}
 	}
 
 	// Print the level, keys, and values of the node
@@ -165,14 +172,14 @@ func (t *BTree) PrintTree(x *BTreeNode, l int) {
 
 // Search searches for a key in the B-Tree.
 // It returns the value associated with the key and a boolean indicating whether the key was found.
-func (t *BTree) Search(key []byte) ([]byte, bool) {
+func (t *BTree) Search(key []byte) (MemtableEntry, bool) {
 	// The search starts from the root of the B-Tree.
 	return t.searchInNode(t.root, key)
 }
 
 // searchInNode searches for a key in a node of the B-Tree.
 // It returns the value associated with the key and a boolean indicating whether the key was found.
-func (t *BTree) searchInNode(x *BTreeNode, k []byte) ([]byte, bool) {
+func (t *BTree) searchInNode(x *BTreeNode, k []byte) (MemtableEntry, bool) {
 	i := 0
 	// Find the first key greater than or equal to k.
 	for i < len(x.keys) && bytes.Compare(k, x.keys[i]) > 0 {
@@ -183,23 +190,23 @@ func (t *BTree) searchInNode(x *BTreeNode, k []byte) ([]byte, bool) {
 		return x.values[i], true
 	} else if x.leaf {
 		// If the node is a leaf and the key is not found, return nil and false.
-		return nil, false
+		return MemtableEntry{}, false
 	} else {
 		// If the node is not a leaf, recurse on the appropriate child node.
 		if i < len(x.childPtr) {
 			return t.searchInNode(x.childPtr[i], k)
 		} else {
-			return nil, false
+			return MemtableEntry{}, false
 		}
 	}
 }
 
 // Delete deletes a key from the B-Tree.
-func (t *BTree) Delete(k []byte) bool {
+func (t *BTree) Delete(k []byte) error {
 	// Check if the key exists in the tree
 	_, found := t.Search(k)
 	if !found {
-		return false
+		return fmt.Errorf("key does not exist in the tree")
 	}
 	// Delete the key from the tree
 	t.deleteNode(t.root, k)
@@ -210,10 +217,9 @@ func (t *BTree) Delete(k []byte) bool {
 	} else if len(t.root.keys) == 0 {
 		t.root = NewNode(t.t, true)
 	}
-	return true
+	return nil
 }
 
-// deleteNode deletes a key from a node in the B-Tree.
 func (t *BTree) deleteNode(x *BTreeNode, k []byte) {
 	tt := t.t
 	i := 0
@@ -272,8 +278,6 @@ func (t *BTree) deleteNode(x *BTreeNode, k []byte) {
 	}
 }
 
-// deletePredecessor deletes the predecessor of a key in a B-Tree node.
-// It returns the key of the predecessor.
 func (t *BTree) deletePredecessor(x *BTreeNode) []byte {
 	if x.leaf {
 		// If the node is a leaf, remove the last key and return it
@@ -295,8 +299,6 @@ func (t *BTree) deletePredecessor(x *BTreeNode) []byte {
 	}
 }
 
-// deleteSuccessor deletes the successor of a key in a B-Tree node.
-// It returns the key of the successor.
 func (t *BTree) deleteSuccessor(x *BTreeNode) []byte {
 	if x.leaf {
 		// If the node is a leaf, remove the first key and return it
@@ -343,7 +345,6 @@ func (t *BTree) merge(x *BTreeNode, i int) {
 	y.childPtr = append(y.childPtr, z.childPtr...)
 }
 
-// borrowFromPrev borrows a key from a B-Tree node's previous sibling.
 func (t *BTree) borrowFromPrev(x *BTreeNode, i int) {
 	if i == 0 {
 		return
@@ -352,7 +353,7 @@ func (t *BTree) borrowFromPrev(x *BTreeNode, i int) {
 	z := x.childPtr[i-1]
 	// Make room for a new key and value in the node
 	y.keys = append(y.keys, nil)
-	y.values = append(y.values, nil)
+	y.values = append(y.values, MemtableEntry{})
 	// Shift the keys and values in the node
 	copy(y.keys[1:], y.keys)
 	copy(y.values[1:], y.values)
@@ -376,7 +377,6 @@ func (t *BTree) borrowFromPrev(x *BTreeNode, i int) {
 	z.values = z.values[:len(z.values)-1]
 }
 
-// borrowFromNext borrows a key from a B-Tree node's next sibling.
 func (t *BTree) borrowFromNext(x *BTreeNode, i int) {
 	if i == len(x.keys) {
 		return
@@ -401,8 +401,8 @@ func (t *BTree) borrowFromNext(x *BTreeNode, i int) {
 
 // InOrder performs an in-order traversal of the B-Tree.
 // It returns a slice of key-value pairs in the order they were visited.
-func (t *BTree) InOrder(x *BTreeNode) [][2][]byte {
-	var result [][2][]byte
+func (t *BTree) InOrder(x *BTreeNode) [][2]interface{} {
+	var result [][2]interface{}
 	// The result slice to hold the key-value pairs
 	if x != nil {
 		for i := 0; i < len(x.keys); i++ {
@@ -411,7 +411,7 @@ func (t *BTree) InOrder(x *BTreeNode) [][2][]byte {
 				result = append(result, t.InOrder(x.childPtr[i])...)
 			}
 			// Append the key-value pair to the result
-			result = append(result, [2][]byte{x.keys[i], x.values[i]})
+			result = append(result, [2]interface{}{x.keys[i], x.values[i]})
 		}
 		if !x.leaf {
 			// If the node is not a leaf, recurse on the last child pointer
@@ -422,56 +422,5 @@ func (t *BTree) InOrder(x *BTreeNode) [][2][]byte {
 }
 
 // func main() {
-// 	// Create a new B-Tree
-// 	t := NewBTree(3)
 
-// 	// Keys and values for testing
-// 	keys := [][]byte{
-// 		[]byte("a"),
-// 		[]byte("b"),
-// 		[]byte("c"),
-// 		[]byte("d"),
-// 		[]byte("e"),
-// 		[]byte("f"),
-// 		[]byte("g"),
-// 		[]byte("h"),
-// 		[]byte("i"),
-// 	}
-// 	values := [][]byte{
-// 		[]byte("1"),
-// 		[]byte("2"),
-// 		[]byte("3"),
-// 		[]byte("4"),
-// 		[]byte("5"),
-// 		[]byte("6"),
-// 		[]byte("7"),
-// 		[]byte("8"),
-// 		[]byte("9"),
-// 	}
-
-// 	// Insert keys and values into the B-Tree
-// 	for i, k := range keys {
-// 		t.Insert(k, values[i])
-// 	}
-
-// 	// Print the B-Tree
-// 	t.PrintTree(t.root, 0)
-
-// 	// Search for keys in the B-Tree
-// 	for _, k := range keys {
-// 		v, found := t.Search(k)
-// 		if found {
-// 			fmt.Printf("Key %s found, value: %s\n", k, v)
-// 		} else {
-// 			fmt.Printf("Key %s not found\n", k)
-// 		}
-// 	}
-
-// 	// Delete keys from the B-Tree
-// 	for _, k := range keys {
-// 		t.Delete(k)
-// 	}
-
-// 	// Print the B-Tree after deletion
-// 	t.PrintTree(t.root, 0)
 // }
