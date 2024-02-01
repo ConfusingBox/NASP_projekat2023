@@ -21,6 +21,7 @@ type Config struct {
 	WALBufferSize                int     `json:"wal_buffer_size"`
 	WALSegmentSize               int     `json:"wal_segment_size"`
 	BTreeDegree                  int     `json:"btree_degree"`
+	MemTableThreshold            float32 `json:"mem_table_threshold"`
 	MemTableSize                 int     `json:"mem_table_size"`
 	MemTableType                 string  `json:"mem_table_type"`
 	MemPoolSize                  int     `json:"mem_pool_size"`
@@ -31,6 +32,7 @@ type Config struct {
 	CacheSize                    int     `json:"cache_size"`
 	TokenBucketCapacity          int     `json:"token_bucket_capacity"`
 	TokenBucketLimitSeconds      int     `json:"token_bucket_limit_seconds"`
+	SimHashHashSize              int     `json:"sim_hash_hash_size"`
 }
 
 var DefaultConfig = Config{
@@ -42,6 +44,7 @@ var DefaultConfig = Config{
 	WALBufferSize:                100,
 	WALSegmentSize:               1 * MB,
 	BTreeDegree:                  10,
+	MemTableThreshold:            70.0,
 	MemTableSize:                 10000,
 	MemTableType:                 "skip_list",
 	MemPoolSize:                  10,
@@ -50,6 +53,7 @@ var DefaultConfig = Config{
 	SSTableMultipleFiles:         true,
 	SSTableDirectory:             "data/sstable",
 	CacheSize:                    20,
+	SimHashHashSize:              8,
 }
 
 func LoadConfig(filepath string) (*Config, error) {
@@ -89,6 +93,9 @@ func LoadConfig(filepath string) (*Config, error) {
 	if config.BTreeDegree <= 0 {
 		config.BTreeDegree = DefaultConfig.BTreeDegree
 	}
+	if config.MemTableThreshold <= 0 || config.MemTableThreshold >= 100 {
+		config.MemTableThreshold = DefaultConfig.MemTableThreshold
+	}
 	if config.MemTableSize <= 0 {
 		config.MemTableSize = DefaultConfig.MemTableSize
 	}
@@ -108,6 +115,9 @@ func LoadConfig(filepath string) (*Config, error) {
 		config.SSTableDirectory = DefaultConfig.SSTableDirectory
 	}
 	if config.CacheSize <= 0 {
+		config.CacheSize = DefaultConfig.CacheSize
+	}
+	if config.SimHashHashSize <= 0 {
 		config.CacheSize = DefaultConfig.CacheSize
 	}
 

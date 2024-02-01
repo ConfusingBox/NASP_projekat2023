@@ -73,7 +73,7 @@ func (s *SkipList) Search(key []byte) *SkipListNode {
 }
 
 // Delete deletes a key from the SkipList.
-func (s *SkipList) Delete(key []byte) {
+func (s *SkipList) Delete(key []byte) bool {
 	found := false
 	for h := s.head; h != nil; h = h.down {
 		if bytes.Equal(h.key, key) {
@@ -89,9 +89,11 @@ func (s *SkipList) Delete(key []byte) {
 			}
 		}
 	}
+	// Naredne 4 linije koda su ekvivalentne sa "return found" btw XD
 	if !found {
-		fmt.Printf("Node with key %s does not exist.\n", string(key))
+		return false
 	}
+	return true
 }
 
 // Print prints the keys and values of the SkipList.
