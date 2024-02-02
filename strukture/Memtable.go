@@ -177,7 +177,7 @@ func (mt *Memtable) Exists(key []byte) bool {
 	return true
 }
 
-func (mt *Memtable) Get(key []byte) ([]byte, error) {
+func (mt *Memtable) Get(key []byte) (*MemtableEntry, error) {
 	if mt.dataType == "skip_list" {
 		return mt.GetSkipList(key)
 	}
