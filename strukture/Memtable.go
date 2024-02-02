@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	config "NASP_projekat2023/utils"
 )
 
 type MemtableEntry struct {
@@ -15,12 +13,17 @@ type MemtableEntry struct {
 	Tombstone bool
 }
 
-func NewMemtableEntry(key, value []byte, tombstone bool) *MemtableEntry {
-	return &MemtableEntry{key, value, time.Now(), tombstone}
+func NewMemtableEntry(key, value []byte, tombstone bool, timestamp time.Time) *MemtableEntry {
+	return &MemtableEntry{key, value, timestamp, tombstone}
 }
 
-func EmptyMemtableEntry(key []byte) ([]byte, []byte, bool) {
-	return key, nil, true
+func EmptyMemtableEntry(key []byte, timestamp time.Time) *MemtableEntry {
+	return &MemtableEntry{
+		Key:       key,
+		Value:     nil,
+		Timestamp: timestamp,
+		Tombstone: true,
+	}
 }
 
 type Memtable struct {
@@ -33,18 +36,19 @@ type Memtable struct {
 	dataBTree    *BTree
 }
 
-func NewMemtable() (*Memtable, error) {
-	config, err := config.LoadConfig("config.json")
-	if err != nil {
-		return nil, err
-	}
+func NewMemtable(MemTableSize, SkipListDepth, BTreeDegree int, MemTableType string) (*Memtable, error) {
 
-	mt := Memtable{config.MemTableSize, 0, config.MemTableType, make(map[string]MemtableEntry), NewSkipList(config.SkipListDepth), NewBTree(config.BTreeDegree)}
-	return &mt, nil
+	return &Memtable{
+		MemTableSize,
+		0,
+		MemTableType,
+		make(map[string]MemtableEntry),
+		NewSkipList(SkipListDepth),
+		NewBTree(BTreeDegree),
+	}, nil
 }
 
-func (mt *Memtable) Insert(key, value []byte, tombstone bool) error {
-	entry := NewMemtableEntry(key, value, tombstone)
+func (mt *Memtable) Insert(entry *MemtableEntry) error {
 
 	if mt.dataType == "skip_list" {
 		err := mt.InsertSkipList(entry)
@@ -68,7 +72,7 @@ func (mt *Memtable) Insert(key, value []byte, tombstone bool) error {
 		return errors.New("Los naziv strukture kod Memtable.Insert().")
 	}
 
-	if mt.currentSize >= mt.size {
+	if mt.IsFull() {
 		mt.Flush()
 		mt.currentSize = 0
 	}
@@ -129,34 +133,20 @@ func (mt *Memtable) Delete(key []byte) error {
 
 func (mt *Memtable) DeleteSkipList(key []byte) error {
 	success := mt.dataSkipList.Delete(key)
-
 	if success {
 		mt.currentSize--
+		return nil
 	}
-
-	err := mt.Insert(EmptyMemtableEntry(key))
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return errors.New("error while deleting from a skiplist")
 }
 
 func (mt *Memtable) DeleteBTree(key []byte) error {
 	success := mt.dataBTree.Delete(key)
-
 	if success {
 		mt.currentSize--
+		return nil
 	}
-
-	err := mt.Insert(EmptyMemtableEntry(key))
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return errors.New("error while deleting from a btree")
 }
 
 func (mt *Memtable) DeleteHashMap(key []byte) error {
@@ -174,6 +164,26 @@ func (mt *Memtable) DeleteHashMap(key []byte) error {
 	}
 
 	return nil
+}
+
+func (mt *Memtable) Exists(key []byte) bool {
+	switch mt.dataType {
+	case "skip_list":
+		if mt.dataSkipList.Search(key) == nil {
+			return false
+		}
+	case "b_tree":
+		_, exists := mt.dataBTree.Search(key)
+		if !exists {
+			return false
+		}
+	case "hash_map":
+		_, exists := mt.dataHashMap[string(key)]
+		if !exists {
+			return false
+		}
+	}
+	return true
 }
 
 func (mt *Memtable) Get(key []byte) (*MemtableEntry, error) {
@@ -198,7 +208,6 @@ func (mt *Memtable) GetSkipList(key []byte) (*MemtableEntry, error) {
 	if entry == nil {
 		return nil, errors.New("Zapis ne postoji.")
 	}
-
 	return entry, nil
 }
 
@@ -208,7 +217,6 @@ func (mt *Memtable) GetBTree(key []byte) (*MemtableEntry, error) {
 	if !exist {
 		return nil, errors.New("Zapis ne postoji.")
 	}
-
 	return entry, nil
 }
 
@@ -218,8 +226,14 @@ func (mt *Memtable) GetHashMap(key []byte) (*MemtableEntry, error) {
 	if !exist {
 		return nil, errors.New("Zapis ne postoji.")
 	}
-
 	return &value, nil
+}
+
+func (mt *Memtable) IsFull() bool {
+	if mt.currentSize == mt.size {
+		return true
+	}
+	return false
 }
 
 func (mt *Memtable) PrintMemtable() {

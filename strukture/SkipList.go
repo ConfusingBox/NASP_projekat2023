@@ -1,12 +1,9 @@
 package strukture
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
-	"strings"
 )
 
 // SkipListNode represents a node in the SkipList.
@@ -106,6 +103,7 @@ func (s *SkipList) Print() {
 	}
 }
 
+/*
 func SkipListMenu(s *SkipList) {
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -154,7 +152,7 @@ func SkipListMenu(s *SkipList) {
 		}
 	}
 }
-
+*/
 // func main() {
 // 	// Create a new SkipList
 // 	s := NewSkipList(3)
