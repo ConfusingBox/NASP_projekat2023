@@ -303,73 +303,90 @@ func GetSSTableIndex(lsm_level int) int {
 	return maxIndex + 1
 }
 
-// SerializeMemtableEntry takes a MemtableEntry and serializes it into a byte slice.
 func SerializeMemtableEntry(entry MemtableEntry) []byte {
 	buf := make([]byte, 0, 1024)
 	var b [binary.MaxVarintLen64]byte
 
-	// Serialize Timestamp
-	n := binary.PutUvarint(b[:], uint64(entry.Timestamp.Truncate(time.Second).Unix()))
+	n := binary.PutUvarint(b[:], uint64(entry.Timestamp.Unix()))
 	buf = append(buf, b[:n]...)
 
-	// Serialize Tombstone
 	if entry.Tombstone {
 		buf = append(buf, 't')
 	} else {
 		buf = append(buf, 'f')
 	}
 
-	// Serialize Key
 	n = binary.PutUvarint(b[:], uint64(len(entry.Key)))
 	buf = append(buf, b[:n]...)
-	buf = append(buf, entry.Key...)
 
-	// Serialize Value only if Tombstone is not set to true
 	if !entry.Tombstone {
 		n = binary.PutUvarint(b[:], uint64(len(entry.Value)))
 		buf = append(buf, b[:n]...)
+	}
+
+	buf = append(buf, entry.Key...)
+
+	if !entry.Tombstone {
 		buf = append(buf, entry.Value...)
 	}
 
-	// Add CRC at the beginning
-	crc := hashfunc.Crc32AsBytes(buf)
-	buf = append(crc, buf...)
+	crc := hashfunc.Crc32(buf)
+	n = binary.PutUvarint(b[:], uint64(crc))
+	buf = append(b[:n], buf...)
 
-	fmt.Print(buf)
 	return buf
 }
 
-// DeserializeMemtableEntry takes a byte slice and deserializes it into a MemtableEntry and the number of bytes read.
-func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int) {
+func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int, error) {
 	var decodedEntry MemtableEntry
 	initialLen := len(buf)
 
-	// Skip CRC
-	buf = buf[4:]
+	if len(buf) < 4 {
+		return decodedEntry, 0, errors.New("buffer too short for CRC")
+	}
 
-	// Deserialize Timestamp
+	_, n := binary.Uvarint(buf)
+	buf = buf[n:]
+
 	timestamp, n := binary.Uvarint(buf)
+	if n <= 0 {
+		return decodedEntry, 0, errors.New("buffer too short for timestamp")
+	}
 	decodedEntry.Timestamp = time.Unix(int64(timestamp), 0)
 	buf = buf[n:]
 
-	// Deserialize Tombstone
+	if len(buf) < 1 {
+		return decodedEntry, 0, errors.New("buffer too short for tombstone")
+	}
+
 	decodedEntry.Tombstone = buf[0] == 't'
 	buf = buf[1:]
 
-	// Deserialize Key
 	keyLen, n := binary.Uvarint(buf)
-	decodedEntry.Key = buf[n : n+int(keyLen)]
-	buf = buf[n+int(keyLen):]
+	if n <= 0 || len(buf[n:]) < int(keyLen) {
+		return decodedEntry, 0, errors.New("buffer too short for key")
+	}
+	buf = buf[n:]
 
-	// Deserialize Value only if Tombstone is not set to true
+	var valueLen uint64
 	if !decodedEntry.Tombstone {
-		valueLen, n := binary.Uvarint(buf)
-		decodedEntry.Value = buf[n : n+int(valueLen)]
-		buf = buf[n+int(valueLen):]
+		valueLen, n = binary.Uvarint(buf)
+		if n <= 0 || len(buf[n:]) < int(valueLen) {
+			return decodedEntry, 0, errors.New("buffer too short for value size")
+		}
+		buf = buf[n:]
+	}
+
+	decodedEntry.Key = buf[:keyLen]
+	buf = buf[keyLen:]
+
+	if !decodedEntry.Tombstone {
+		decodedEntry.Value = buf[:valueLen]
+		buf = buf[valueLen:]
 	}
 
 	bytesRead := initialLen - len(buf)
-	return decodedEntry, bytesRead
+	return decodedEntry, bytesRead, nil
 }
 
 func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel int, multipleFiles bool) error {
