@@ -75,3 +75,11 @@ func Crc32AsBytes(data []byte) []byte {
 
 	return checksum_bytes
 }
+
+func Crc32(data []byte) uint32 {
+	hasher := crc32.NewIEEE()
+	hasher.Write(data)
+	checksum := hasher.Sum32()
+
+	return checksum
+}
