@@ -59,10 +59,10 @@ func (mp *Mempool) Get(key []byte, tableIdx int) ([]byte, error) {
 }
 
 func (mp *Mempool) Put(entry *MemtableEntry) error {
-	exists, tableIdx := mp.Exists(entry.Key)
+	exists := mp.tables[mp.activeTableIdx].Exists(entry.Key)
 	err := error(nil)
 	if exists {
-		err = mp.tables[tableIdx].Delete(entry.Key)
+		err = mp.tables[mp.activeTableIdx].Delete(entry.Key)
 		if err != nil {
 			return err
 		}
