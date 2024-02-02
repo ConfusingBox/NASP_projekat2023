@@ -72,11 +72,6 @@ func (mt *Memtable) Insert(entry *MemtableEntry) error {
 		return errors.New("Los naziv strukture kod Memtable.Insert().")
 	}
 
-	if mt.IsFull() {
-		mt.Flush()
-		mt.currentSize = 0
-	}
-
 	return nil
 }
 
@@ -133,6 +128,7 @@ func (mt *Memtable) Delete(key []byte) error {
 
 func (mt *Memtable) DeleteSkipList(key []byte) error {
 	success := mt.dataSkipList.Delete(key)
+
 	if success {
 		mt.currentSize--
 		return nil
@@ -142,6 +138,7 @@ func (mt *Memtable) DeleteSkipList(key []byte) error {
 
 func (mt *Memtable) DeleteBTree(key []byte) error {
 	success := mt.dataBTree.Delete(key)
+
 	if success {
 		mt.currentSize--
 		return nil
@@ -155,15 +152,9 @@ func (mt *Memtable) DeleteHashMap(key []byte) error {
 	if exist {
 		delete(mt.dataHashMap, string(key))
 		mt.currentSize--
+		return nil
 	}
-
-	err := mt.Insert(EmptyMemtableEntry(key))
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return errors.New("error while deleting from a hashmap")
 }
 
 func (mt *Memtable) Exists(key []byte) bool {
