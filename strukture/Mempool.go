@@ -54,7 +54,7 @@ func (mp *Mempool) IsFull() bool {
 	return true
 }
 
-func (mp *Mempool) Get(key []byte, tableIdx int) ([]byte, error) {
+func (mp *Mempool) Get(key []byte, tableIdx int) (*MemtableEntry, error) {
 	return mp.tables[tableIdx].Get(key)
 }
 

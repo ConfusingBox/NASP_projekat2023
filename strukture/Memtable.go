@@ -303,6 +303,7 @@ func GetSSTableIndex(lsm_level int) int {
 	return maxIndex + 1
 }
 
+// SerializeMemtableEntry takes a MemtableEntry and serializes it into a byte slice.
 func SerializeMemtableEntry(entry MemtableEntry) []byte {
 	buf := make([]byte, 0, 1024)
 	var b [binary.MaxVarintLen64]byte
@@ -338,6 +339,7 @@ func SerializeMemtableEntry(entry MemtableEntry) []byte {
 	return buf
 }
 
+// DeserializeMemtableEntry takes a byte slice and deserializes it into a MemtableEntry and the number of bytes read.
 func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int) {
 	var decodedEntry MemtableEntry
 	initialLen := len(buf)
