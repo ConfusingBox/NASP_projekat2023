@@ -1,8 +1,16 @@
 package strukture
 
 import (
+	MerkleTree "NASP_projekat2023/strukture/MerkleTree"
+	hashfunc "NASP_projekat2023/utils"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -243,76 +251,270 @@ func (mt *Memtable) PrintMemtable() {
 	}
 }
 
-// func (mt *Memtable) Flush(bloomfilter *BloomFilter, filename string) error {
-func (mt *Memtable) Flush() error {
+func (mt *Memtable) GetSortedEntries() []string {
+	entries := make([]string, 0)
 
-	/*
-		// Poziva se kada treshold >= size. (Moze li biti vece ili mora striktno jednako?
-		if mt.dataType == "hash_map" {
-			keysToFlush := make([]string, 0)
-			for key := range mt.dataHashMap {
-				keysToFlush = append(keysToFlush, key)
-			}
-			sort.Strings(keysToFlush)
+	if mt.dataType == "hash_map" {
+		for key := range mt.dataHashMap {
+			entries = append(entries, key)
+		}
+	}
+	if mt.dataType == "skip_list" {
+		node := mt.dataSkipList.head
 
-			for _, key := range keysToFlush {
-				bloomfilter.Insert(key)
+		for mt.dataSkipList.head != nil {
+			entries = append(entries, string(node.key))
+			node = node.down
+		}
+	}
+	if mt.dataType == "b_tree" {
+		for _, value := range mt.dataBTree.InOrder(mt.dataBTree.root) {
+			entries = append(entries, string(value[0]))
+		}
+	}
+	sort.Strings(entries)
 
+	return entries
+}
+
+func GetSSTableIndex(lsm_level int) int {
+	maxIndex := 0
+	fileTypes := []string{"sstable", "index", "filter", "summary", "metadata"}
+
+	for _, fileType := range fileTypes {
+		files, _ := os.ReadDir("./" + fileType)
+
+		for _, f := range files {
+			fileName := f.Name()
+			fileRegex := fileType + "_" + fmt.Sprint(lsm_level) + "_\\d+.db"
+
+			match, _ := regexp.Match(fileRegex, []byte(fileName))
+
+			if match {
+				index := strings.Split(fileName, fileType+"_")
+				index = strings.Split(index[1], ".db")
+				index = strings.Split(index[0], "_")
+				id, _ := strconv.Atoi(index[1])
+
+				maxIndex = max(id, maxIndex)
 			}
 		}
-		if mt.dataType == "skip_list" {
-			keysToFlush := make([]string, 0)
-			node := mt.dataSkipList.head
-			for node != nil {
-				keysToFlush = append(keysToFlush, string(node.key))
-				node = node.down
-			}
-			sort.Strings(keysToFlush)
+	}
+	return maxIndex + 1
+}
 
-			for _, key := range keysToFlush {
-				bloomfilter.Insert(key)
-			}
-			return nil
+func SerializeMemtableEntry(entry MemtableEntry) []byte {
+	buf := make([]byte, 0, 1024)
+	var b [binary.MaxVarintLen64]byte
+
+	// Serialize Timestamp
+	n := binary.PutUvarint(b[:], uint64(entry.Timestamp.Truncate(time.Second).Unix()))
+	buf = append(buf, b[:n]...)
+
+	// Serialize Tombstone
+	if entry.Tombstone {
+		buf = append(buf, 't')
+	} else {
+		buf = append(buf, 'f')
+	}
+
+	// Serialize Key
+	n = binary.PutUvarint(b[:], uint64(len(entry.Key)))
+	buf = append(buf, b[:n]...)
+	buf = append(buf, entry.Key...)
+
+	// Serialize Value only if Tombstone is not set to true
+	if !entry.Tombstone {
+		n = binary.PutUvarint(b[:], uint64(len(entry.Value)))
+		buf = append(buf, b[:n]...)
+		buf = append(buf, entry.Value...)
+	}
+
+	// Add CRC at the beginning
+	crc := hashfunc.Crc32AsBytes(buf)
+	buf = append(crc, buf...)
+
+	fmt.Print(buf)
+	return buf
+}
+
+func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int) {
+	var decodedEntry MemtableEntry
+	initialLen := len(buf)
+
+	// Skip CRC
+	buf = buf[4:]
+
+	// Deserialize Timestamp
+	timestamp, n := binary.Uvarint(buf)
+	decodedEntry.Timestamp = time.Unix(int64(timestamp), 0)
+	buf = buf[n:]
+
+	// Deserialize Tombstone
+	decodedEntry.Tombstone = buf[0] == 't'
+	buf = buf[1:]
+
+	// Deserialize Key
+	keyLen, n := binary.Uvarint(buf)
+	decodedEntry.Key = buf[n : n+int(keyLen)]
+	buf = buf[n+int(keyLen):]
+
+	// Deserialize Value only if Tombstone is not set to true
+	if !decodedEntry.Tombstone {
+		valueLen, n := binary.Uvarint(buf)
+		decodedEntry.Value = buf[n : n+int(valueLen)]
+		buf = buf[n+int(valueLen):]
+	}
+
+	bytesRead := initialLen - len(buf)
+	return decodedEntry, bytesRead
+}
+
+func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel int, multipleFiles bool) error {
+	if multipleFiles {
+		sortedKeys := mt.GetSortedEntries()
+		index := GetSSTableIndex(lsmLevel)
+		bf := NewBloomFilterWithSize(50000, 0.2)
+		mtree := MerkleTree.NewMerkleTree()
+		tableIndex := make(map[string]uint64)
+		summaryIndex := make(map[string]uint64)
+		last := ""
+		var totalMemtableSize uint64 = 0
+		var totalIndexSize uint64 = 0
+
+		dataFile, err := os.Create("./sstable/sstable" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
+		if err != nil {
+			return err
 		}
-		if mt.dataType == "b_tree" {
-			// pairs := mt.dataBTree.InOrder(mt.dataBTree.root)
-			keyValuePairs := mt.dataBTree.InOrder(mt.dataBTree.root)
-			keysOnly := make([][]byte, len(keyValuePairs))
-			for i, pair := range keyValuePairs {
-				keysOnly[i] = pair[0]
-			}
-			for i := range keysOnly {
-				bloomfilter.Insert(string(keysOnly[i]))
-			}
-			return nil
+		defer dataFile.Close()
+		filterFile, err := os.Create("./filter/filter_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
+		if err != nil {
+			return err
 		}
-		return nil
-	*/
+		defer filterFile.Close()
+		metadataFile, err := os.Create("./metadata/metadata_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
+		if err != nil {
+			return err
+		}
+		defer metadataFile.Close()
+		indexFile, err := os.Create("./index/index_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
+		if err != nil {
+			return err
+		}
+		defer indexFile.Close()
+		summaryFile, err := os.Create("./summary/summary_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
+		if err != nil {
+			return err
+		}
+		defer summaryFile.Close()
+
+		for i, key := range sortedKeys {
+			entry, err := mt.Get([]byte(key))
+			if err != nil {
+				return err
+			}
+
+			bf.Insert(key)
+			mtree.AddElement([]byte(key))
+
+			serializedEntry := SerializeMemtableEntry(*entry)
+			_, err = dataFile.Write(serializedEntry)
+
+			if i%indexSparsity == 0 {
+				tableIndex[key] = totalMemtableSize
+
+				if i%(indexSparsity*summarySparsity) == 0 {
+					summaryIndex[key] = totalIndexSize
+				}
+
+				totalIndexSize += uint64(len(fmt.Sprint(len(key))))
+				totalIndexSize += uint64(len(key))
+				totalIndexSize += uint64(len(fmt.Sprint(tableIndex[key]))) // Mislim da se ovdje nalazi neka greska? Sad sam preumoran da je nadjem
+				last = key
+			}
+			totalMemtableSize += uint64(len(serializedEntry))
+
+			if err != nil {
+				return err
+			}
+		}
+
+		// Serialize bloom filter
+		_, err = filterFile.Write(SerializeBloomFilter(bf))
+		if err != nil {
+			return err
+		}
+
+		// Serialize merkle tree
+		metadataFile.Write(mtree.SerializeTree())
+
+		// Serialize table index
+		indexEntries := make([]string, 0)
+		for key := range tableIndex {
+			indexEntries = append(indexEntries, key)
+		}
+		sort.Strings(indexEntries)
+
+		for _, key := range indexEntries {
+			indexFile.Write([]byte{byte(len(key))})
+			indexFile.Write([]byte(key))
+			indexFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
+		}
+
+		// Serialize index summary
+		summaryFile.Write([]byte{byte(len(indexEntries[0]))}) // Ovdje mozda treba varijabilni enkoding
+		summaryFile.Write([]byte(indexEntries[0]))
+		summaryFile.Write([]byte{byte(len(last))})
+		summaryFile.Write([]byte(last))
+
+		summaryEntries := make([]string, 0)
+		for key := range summaryIndex {
+			summaryEntries = append(summaryEntries, key)
+		}
+		sort.Strings(summaryEntries)
+
+		for _, key := range summaryEntries {
+			summaryFile.Write([]byte{byte(len(key))})
+			summaryFile.Write([]byte(key))
+			summaryFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
+		}
+	}
 
 	return nil
 }
 
-/*
 func main() {
-	mt, err := NewMemtable()
+	mt, err := NewMemtable(100, 10, 10, "b_tree")
 	if err != nil {
 		fmt.Print(err)
 	}
 
-	mt.dataType = "hash_map"
+	a := NewMemtableEntry([]byte("a"), []byte("aaa"), false, time.Now())
+	b := NewMemtableEntry([]byte("b"), []byte("bbbb"), true, time.Now())
+	c := NewMemtableEntry([]byte("c"), []byte("ccccc"), false, time.Now())
+	d := NewMemtableEntry([]byte("d"), []byte("dddd"), false, time.Now())
+	e := NewMemtableEntry([]byte("e"), []byte("eee"), false, time.Now())
 
-	mt.Insert([]byte("a"), []byte("aaa"), false)
-	mt.Insert([]byte("b"), []byte("bbb"), false)
-	mt.Insert([]byte("c"), []byte("ccc"), false)
-	mt.Insert([]byte("d"), []byte("ddd"), false)
-	mt.Insert([]byte("e"), []byte("eee"), false)
+	mt.Insert(a)
+	mt.Insert(b)
+	mt.Insert(c)
+	mt.Insert(d)
+	mt.Insert(e)
 
-	mt.PrintMemtable()
+	// aa := SerializeMemtableEntry(*b)
+	// aaa := DeserializeMemtableEntry(aa)
+	// fmt.Print(aaa)
+
+	mt.Flush(2, 2, 1, true)
+
+	// mt.PrintMemtable()
 
 	mt.Delete([]byte("a"))
 	mt.Delete([]byte("f"))
 
-	mt.PrintMemtable()
+	// mt.Flush()
+
+	// mt.PrintMemtable()
 
 	data1, err := mt.Get([]byte("a"))
 	fmt.Print("\n", data1)
@@ -320,4 +522,3 @@ func main() {
 	data2, err := mt.Get([]byte("f"))
 	fmt.Print("\n", data2)
 }
-*/

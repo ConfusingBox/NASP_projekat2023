@@ -403,8 +403,8 @@ func (t *BTree) borrowFromNext(x *BTreeNode, i int) {
 
 // InOrder performs an in-order traversal of the B-Tree.
 // It returns a slice of key-value pairs in the order they were visited.
-func (t *BTree) InOrder(x *BTreeNode) [][2]interface{} {
-	var result [][2]interface{}
+func (t *BTree) InOrder(x *BTreeNode) [][2][]byte {
+	var result [][2][]byte
 	// The result slice to hold the key-value pairs
 	if x != nil {
 		for i := 0; i < len(x.keys); i++ {
@@ -413,7 +413,7 @@ func (t *BTree) InOrder(x *BTreeNode) [][2]interface{} {
 				result = append(result, t.InOrder(x.childPtr[i])...)
 			}
 			// Append the key-value pair to the result
-			result = append(result, [2]interface{}{x.keys[i], x.values[i]})
+			result = append(result, [2][]byte{x.keys[i], x.values[i].Key})
 		}
 		if !x.leaf {
 			// If the node is not a leaf, recurse on the last child pointer
