@@ -259,19 +259,27 @@ func SerializeMemtableEntry(entry MemtableEntry) []byte {
 	return buf
 }
 
-func DeserializeMemtableEntry(buf []byte) MemtableEntry {
+func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int) {
 	var decodedEntry MemtableEntry
+	initialLen := len(buf)
+
 	keyLen, n := binary.Uvarint(buf)
 	decodedEntry.Key = buf[n : n+int(keyLen)]
 	buf = buf[n+int(keyLen):]
+
 	valueLen, n := binary.Uvarint(buf)
 	decodedEntry.Value = buf[n : n+int(valueLen)]
 	buf = buf[n+int(valueLen):]
+
 	timestamp, n := binary.Uvarint(buf)
 	decodedEntry.Timestamp = time.Unix(int64(timestamp), 0)
 	buf = buf[n:]
+
 	decodedEntry.Tombstone = buf[0] == 't'
-	return decodedEntry
+	buf = buf[1:]
+
+	bytesRead := initialLen - len(buf)
+	return decodedEntry, bytesRead
 }
 
 // func (mt *Memtable) Flush(bloomfilter *BloomFilter, filename string) error {
