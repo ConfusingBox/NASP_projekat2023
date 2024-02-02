@@ -3,12 +3,8 @@ package strukture
 import (
 	"bytes"
 	"crypto/sha1"
-	"encoding/hex"
-	"io"
 	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 )
 
 type MerkleTree struct {
@@ -35,29 +31,19 @@ func (mr *MerkleTree) AddElement(el []byte) {
 	mr.elements = append(mr.elements, el)
 }
 
-func (mr *MerkleTree) CreateTree(folderPath string) {
-	files, err := os.ReadDir(folderPath)
+func (mr *MerkleTree) CreateTree(filePath string) {
+	content, err := os.ReadFile(filePath)
 	if err != nil {
 		panic(err)
 	}
 
-	var fileContents [][]byte
+	// Assume each element in the file is a separate entry
+	mr.elements = bytes.Split(content, []byte("|"))
 
-	for _, file := range files {
-		if !file.IsDir() {
-			content, err := os.ReadFile(filepath.Join(folderPath, file.Name()))
-			if err != nil {
-				panic(err)
-			}
-			fileContents = append(fileContents, content)
-		}
-	}
-
-	sort.Slice(fileContents, func(i, j int) bool {
-		return bytes.Compare(fileContents[i], fileContents[j]) < 0
+	sort.Slice(mr.elements, func(i, j int) bool {
+		return bytes.Compare(mr.elements[i], mr.elements[j]) < 0
 	})
 
-	mr.elements = fileContents
 	mr.buildLeaves()
 	mr.buildInternalNodes()
 }
@@ -77,7 +63,7 @@ func (mr *MerkleTree) buildLeaves() {
 }
 
 func (mr *MerkleTree) padLeaves() {
-	for len(mr.leaves)%4 != 0 {
+	for len(mr.leaves)%2 != 0 {
 		key := sha1.Sum([]byte{})
 		newNode := NewNode(key)
 		mr.leaves = append(mr.leaves, newNode)
@@ -99,17 +85,14 @@ func (mr *MerkleTree) buildInternalNodes() {
 	mr.root = queue[0]
 }
 
-func (mr *MerkleTree) SerializeTree(FILEPATH string) {
-	file, err := os.OpenFile(filepath.Join(FILEPATH), os.O_WRONLY|os.O_CREATE, 0777)
-	if err != nil {
-		panic(err)
-	}
+func (mr *MerkleTree) SerializeTree() []byte {
+	var result []byte
 	queue := []*Node{mr.root}
 	for len(queue) > 0 {
 		el := queue[0]
 		queue = queue[1:]
-		file.Write([]byte(hex.EncodeToString(el.data[:])))
-		file.Write([]byte("|"))
+		result = append(result, el.data[:]...)
+		result = append(result, '|')
 		if el.left != nil {
 			queue = append(queue, el.left)
 		}
@@ -117,16 +100,11 @@ func (mr *MerkleTree) SerializeTree(FILEPATH string) {
 			queue = append(queue, el.right)
 		}
 	}
+	return result
 }
 
-func ReconstructTree(FILEPATH string) *MerkleTree {
-	file, err := os.OpenFile(filepath.Join(FILEPATH), os.O_RDONLY, 0777)
-	if err != nil {
-		panic(err)
-	}
-	content, err := io.ReadAll(file)
-
-	keys := strings.Split(string(content), "|")
+func ReconstructTree(data []byte) *MerkleTree {
+	keys := bytes.Split(data, []byte("|"))
 	keys = keys[:len(keys)-1]
 
 	newMerkleTree := NewMerkleTree()
@@ -134,24 +112,28 @@ func ReconstructTree(FILEPATH string) *MerkleTree {
 	nodes := make([]Node, len(keys))
 
 	for i := 0; i < len(keys); i++ {
-		u, _ := hex.DecodeString(keys[i])
-		var d [20]byte
-		copy(d[:], u)
-		nodes[i] = Node{data: d}
+		copy(nodes[i].data[:], keys[i])
 	}
-	i := 1
-	newMerkleTree.root = &nodes[0]
-	queue := []*Node{newMerkleTree.root}
-	for len(queue) > 0 {
-		el := queue[0]
-		queue = queue[1:]
-		if i < len(keys) {
-			el.left = &nodes[i]
-			i++
-			el.right = &nodes[i]
-			i++
-			queue = append(queue, el.left, el.right)
+
+	if len(nodes) > 0 {
+		newMerkleTree.root = &nodes[0]
+		queue := []*Node{newMerkleTree.root}
+		i := 1
+
+		for len(queue) > 0 {
+			el := queue[0]
+			queue = queue[1:]
+			if i < len(nodes) {
+				el.left = &nodes[i]
+				i++
+				if i < len(nodes) {
+					el.right = &nodes[i]
+					i++
+					queue = append(queue, el.left, el.right)
+				}
+			}
 		}
 	}
+
 	return newMerkleTree
 }
