@@ -60,13 +60,13 @@ func (s *SkipList) Insert(entry MemtableEntry) {
 
 // Search searches for a key in the SkipList.
 // It returns the node containing the key if it exists, otherwise it returns nil.
-func (s *SkipList) Search(key []byte) *SkipListNode {
+func (s *SkipList) Search(key []byte) *MemtableEntry {
 	for node := s.head; node != nil; node = node.down {
 		for node.right != nil && bytes.Compare(node.right.key, key) <= 0 {
 			node = node.right
 		}
 		if bytes.Equal(node.key, key) {
-			return node
+			return &node.entry
 		}
 	}
 	return nil
@@ -135,7 +135,7 @@ func SkipListMenu(s *SkipList) {
 
 			node := s.Search([]byte(key))
 			if node != nil {
-				fmt.Printf("Ključ %s sa vrednošću %s\n", node.key, node.entry.Value)
+				fmt.Printf("Ključ %s sa vrednošću %s\n", node.Key, node.Value)
 			} else {
 				fmt.Printf("Ključ %s nije pronađen\n", key)
 			}

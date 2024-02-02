@@ -1,8 +1,3 @@
-// -Potrebno je omoguciti da korisnik podesava osobine memtable-a. Za to nam fali config.json fajl.
-// -Potrebno je omoguciti i implementaciju sa skip listom. Za to nam fali SkipList.go fajl.
-
-// Da li entry treba da bude tip value-a?
-
 package strukture
 
 import (
@@ -29,7 +24,6 @@ func EmptyMemtableEntry(key []byte) ([]byte, []byte, bool) {
 }
 
 type Memtable struct {
-	threshold   float32
 	size        int
 	currentSize int
 
@@ -45,7 +39,7 @@ func NewMemtable() (*Memtable, error) {
 		return nil, err
 	}
 
-	mt := Memtable{config.MemTableThreshold, config.MemTableSize, 0, config.MemTableType, make(map[string]MemtableEntry), NewSkipList(config.SkipListDepth), NewBTree(config.BTreeDegree)}
+	mt := Memtable{config.MemTableSize, 0, config.MemTableType, make(map[string]MemtableEntry), NewSkipList(config.SkipListDepth), NewBTree(config.BTreeDegree)}
 	return &mt, nil
 }
 
@@ -74,7 +68,7 @@ func (mt *Memtable) Insert(key, value []byte, tombstone bool) error {
 		return errors.New("Los naziv strukture kod Memtable.Insert().")
 	}
 
-	if mt.threshold*float32(mt.size) <= 100.0*float32(mt.currentSize) {
+	if mt.currentSize >= mt.size {
 		mt.Flush()
 		mt.currentSize = 0
 	}
@@ -182,7 +176,7 @@ func (mt *Memtable) DeleteHashMap(key []byte) error {
 	return nil
 }
 
-func (mt *Memtable) Get(key []byte) ([]byte, error) {
+func (mt *Memtable) Get(key []byte) (*MemtableEntry, error) {
 	if mt.dataType == "skip_list" {
 		return mt.GetSkipList(key)
 	}
@@ -198,38 +192,38 @@ func (mt *Memtable) Get(key []byte) ([]byte, error) {
 	return nil, errors.New("Los naziv strukture kod Memtable.Get().")
 }
 
-func (mt *Memtable) GetSkipList(key []byte) ([]byte, error) {
-	exist := mt.dataSkipList.Search(key)
+func (mt *Memtable) GetSkipList(key []byte) (*MemtableEntry, error) {
+	entry := mt.dataSkipList.Search(key)
 
-	if exist == nil {
+	if entry == nil {
 		return nil, errors.New("Zapis ne postoji.")
 	}
 
-	return exist.entry.Value, nil
+	return entry, nil
 }
 
-func (mt *Memtable) GetBTree(key []byte) ([]byte, error) {
+func (mt *Memtable) GetBTree(key []byte) (*MemtableEntry, error) {
 	entry, exist := mt.dataBTree.Search(key)
 
 	if !exist {
 		return nil, errors.New("Zapis ne postoji.")
 	}
 
-	return entry.Value, nil
+	return entry, nil
 }
 
-func (mt *Memtable) GetHashMap(key []byte) ([]byte, error) {
+func (mt *Memtable) GetHashMap(key []byte) (*MemtableEntry, error) {
 	value, exist := mt.dataHashMap[string(key)]
 
 	if !exist {
 		return nil, errors.New("Zapis ne postoji.")
 	}
 
-	return value.Value, nil
+	return &value, nil
 }
 
 func (mt *Memtable) PrintMemtable() {
-	fmt.Print("\n", mt.threshold, " ", mt.size, " ", mt.currentSize, "\n")
+	fmt.Print("\n", mt.size, " ", mt.currentSize, "\n")
 
 	if mt.dataType == "hash_map" {
 		for index, data := range mt.dataHashMap {
@@ -246,6 +240,7 @@ func (mt *Memtable) PrintMemtable() {
 
 // func (mt *Memtable) Flush(bloomfilter *BloomFilter, filename string) error {
 func (mt *Memtable) Flush() error {
+
 	/*
 		// Poziva se kada treshold >= size. (Moze li biti vece ili mora striktno jednako?
 		if mt.dataType == "hash_map" {

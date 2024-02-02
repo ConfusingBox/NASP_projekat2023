@@ -172,14 +172,14 @@ func (t *BTree) PrintTree(x *BTreeNode, l int) {
 
 // Search searches for a key in the B-Tree.
 // It returns the value associated with the key and a boolean indicating whether the key was found.
-func (t *BTree) Search(key []byte) (MemtableEntry, bool) {
+func (t *BTree) Search(key []byte) (*MemtableEntry, bool) {
 	// The search starts from the root of the B-Tree.
 	return t.searchInNode(t.root, key)
 }
 
 // searchInNode searches for a key in a node of the B-Tree.
 // It returns the value associated with the key and a boolean indicating whether the key was found.
-func (t *BTree) searchInNode(x *BTreeNode, k []byte) (MemtableEntry, bool) {
+func (t *BTree) searchInNode(x *BTreeNode, k []byte) (*MemtableEntry, bool) {
 	i := 0
 	// Find the first key greater than or equal to k.
 	for i < len(x.keys) && bytes.Compare(k, x.keys[i]) > 0 {
@@ -187,16 +187,16 @@ func (t *BTree) searchInNode(x *BTreeNode, k []byte) (MemtableEntry, bool) {
 	}
 	// If the key is found in the node, return the value and true.
 	if i < len(x.keys) && bytes.Equal(k, x.keys[i]) {
-		return x.values[i], true
+		return &x.values[i], true
 	} else if x.leaf {
 		// If the node is a leaf and the key is not found, return nil and false.
-		return MemtableEntry{}, false
+		return &MemtableEntry{}, false
 	} else {
 		// If the node is not a leaf, recurse on the appropriate child node.
 		if i < len(x.childPtr) {
 			return t.searchInNode(x.childPtr[i], k)
 		} else {
-			return MemtableEntry{}, false
+			return &MemtableEntry{}, false
 		}
 	}
 }
@@ -244,11 +244,13 @@ func (t *BTree) deleteNode(x *BTreeNode, k []byte) {
 	if i < len(x.keys) && bytes.Equal(k, x.keys[i]) {
 		if len(x.childPtr[i].keys) >= tt {
 			x.keys[i] = t.deletePredecessor(x.childPtr[i])
-			x.values[i], _ = t.searchInNode(x.childPtr[i], x.keys[i])
+			entry, _ := t.searchInNode(x.childPtr[i], x.keys[i])
+			x.values[i] = *entry
 			return
 		} else if i+1 < len(x.childPtr) && len(x.childPtr[i+1].keys) >= tt {
 			x.keys[i] = t.deleteSuccessor(x.childPtr[i+1])
-			x.values[i], _ = t.searchInNode(x.childPtr[i+1], x.keys[i])
+			entry, _ := t.searchInNode(x.childPtr[i+1], x.keys[i])
+			x.values[i] = *entry
 			return
 		} else {
 			t.merge(x, i)
