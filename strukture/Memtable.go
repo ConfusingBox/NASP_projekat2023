@@ -1,6 +1,7 @@
 package strukture
 
 import (
+	hashfunc "NASP_projekat2023/utils"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -244,39 +245,69 @@ func (mt *Memtable) PrintMemtable() {
 	}
 }
 
+// SerializeMemtableEntry takes a MemtableEntry and serializes it into a byte slice.
 func SerializeMemtableEntry(entry MemtableEntry) []byte {
 	buf := make([]byte, 0, 1024)
 	var b [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(b[:], uint64(len(entry.Key)))
+
+	// Serialize Timestamp
+	n := binary.PutUvarint(b[:], uint64(entry.Timestamp.Truncate(time.Second).Unix()))
+	buf = append(buf, b[:n]...)
+
+	// Serialize Tombstone
+	if entry.Tombstone {
+		buf = append(buf, 't')
+	} else {
+		buf = append(buf, 'f')
+	}
+
+	// Serialize Key
+	n = binary.PutUvarint(b[:], uint64(len(entry.Key)))
 	buf = append(buf, b[:n]...)
 	buf = append(buf, entry.Key...)
-	n = binary.PutUvarint(b[:], uint64(len(entry.Value)))
-	buf = append(buf, b[:n]...)
-	buf = append(buf, entry.Value...)
-	n = binary.PutUvarint(b[:], uint64(entry.Timestamp.Unix()))
-	buf = append(buf, b[:n]...)
-	buf = append(buf, []byte(fmt.Sprintf("%t", entry.Tombstone))...)
+
+	// Serialize Value only if Tombstone is not set to true
+	if !entry.Tombstone {
+		n = binary.PutUvarint(b[:], uint64(len(entry.Value)))
+		buf = append(buf, b[:n]...)
+		buf = append(buf, entry.Value...)
+	}
+
+	// Add CRC at the beginning
+	crc := hashfunc.Crc32AsBytes(buf)
+	buf = append(crc, buf...)
+
 	return buf
 }
 
+// DeserializeMemtableEntry takes a byte slice and deserializes it into a MemtableEntry and the number of bytes read.
 func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int) {
 	var decodedEntry MemtableEntry
 	initialLen := len(buf)
 
-	keyLen, n := binary.Uvarint(buf)
-	decodedEntry.Key = buf[n : n+int(keyLen)]
-	buf = buf[n+int(keyLen):]
+	// Skip CRC
+	buf = buf[4:]
 
-	valueLen, n := binary.Uvarint(buf)
-	decodedEntry.Value = buf[n : n+int(valueLen)]
-	buf = buf[n+int(valueLen):]
-
+	// Deserialize Timestamp
 	timestamp, n := binary.Uvarint(buf)
 	decodedEntry.Timestamp = time.Unix(int64(timestamp), 0)
 	buf = buf[n:]
 
+	// Deserialize Tombstone
 	decodedEntry.Tombstone = buf[0] == 't'
 	buf = buf[1:]
+
+	// Deserialize Key
+	keyLen, n := binary.Uvarint(buf)
+	decodedEntry.Key = buf[n : n+int(keyLen)]
+	buf = buf[n+int(keyLen):]
+
+	// Deserialize Value only if Tombstone is not set to true
+	if !decodedEntry.Tombstone {
+		valueLen, n := binary.Uvarint(buf)
+		decodedEntry.Value = buf[n : n+int(valueLen)]
+		buf = buf[n+int(valueLen):]
+	}
 
 	bytesRead := initialLen - len(buf)
 	return decodedEntry, bytesRead
