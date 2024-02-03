@@ -6,7 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -301,6 +304,95 @@ func GetSSTableIndex(lsm_level int) int {
 		}
 	}
 	return maxIndex + 1
+}
+func readFiles(maxID int, key string) {
+	folderPaths := []string{"filter", "summary", "index", "sstable"}
+	fmt.Println(folderPaths)
+	for i := 1; i <= maxID; i++ {
+		for _, folderPath := range folderPaths {
+			fileName := fmt.Sprintf("%s_1_%d.db", folderPath, i)
+
+			file, err := openFileInFolder(folderPath, fileName)
+			if err != nil {
+				fmt.Printf("a")
+				return
+			}
+
+			content, errFile := ioutil.ReadAll(file)
+			if errFile != nil {
+				fmt.Printf("b")
+				return
+			}
+
+			bf, errBf := DeserializeBloomFilter(content)
+			if errBf != nil {
+				fmt.Printf("c")
+				return
+			}
+			// deserijalizovan bloom filter
+			isInBloomFilter := bf.Lookup(key)
+			if !isInBloomFilter {
+				break
+			}
+			folderSummary := folderPaths[1]
+			fileSummary := fmt.Sprintf("%s_1_%d.db", folderSummary, i)
+
+			summaryFile, errSummary := os.Open(fileSummary)
+			if errSummary != nil {
+				fmt.Printf("Error opening summary file: %s\n", errSummary)
+				return
+			}
+			// nisam siguran kako izgleda summary file
+			buffer := make([]byte, 4)
+			_, errRead := io.ReadFull(summaryFile, buffer)
+			if errRead != nil {
+				fmt.Printf("Error reading from summary file: %s\n", errRead)
+				return
+			}
+
+			// Store the first 4 bytes into a variable
+			kljuc := buffer
+			folderIndex := folderPaths[2]
+			fileIndex := fmt.Sprintf("%s_1_%d.db", folderIndex, i)
+
+			indexFile, errIndex := os.Open(fileIndex)
+			if errIndex != nil {
+				fmt.Printf("Error opening summary file: %s\n", errIndex)
+				return
+			}
+			// nisam siguran kako izgleda summary file
+			buffer2 := make([]byte, 4)
+			_, errRead2 := io.ReadFull(indexFile, buffer2)
+			if errRead2 != nil {
+				fmt.Printf("Error reading from summary file: %s\n", errRead2)
+				return
+			}
+
+		}
+	}
+
+}
+func openFileInFolder(folderPath, fileName string) (*os.File, error) {
+	filePath := filepath.Join(folderPath, fileName)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Opened file: %s\n", filePath)
+
+	return file, nil
+}
+
+func openFolder(folderPath string) error {
+	err := os.MkdirAll(folderPath, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	// fmt.Printf("Otvoren folder: %s\n", folderPath)
+
+	return nil
 }
 
 func SerializeMemtableEntry(entry MemtableEntry) []byte {
