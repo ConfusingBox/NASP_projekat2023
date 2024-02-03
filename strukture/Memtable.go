@@ -280,16 +280,18 @@ func (mt *Memtable) GetSortedEntries() []string {
 	return entries
 }
 
-func GetSSTableIndex(lsm_level int) int {
+func GetSSTableIndex(lsmLevel int) int {
 	maxIndex := 0
-	fileTypes := []string{"sstable", "index", "filter", "summary", "metadata"}
+	fileTypes := make([]string, 0)
+
+	fileTypes = []string{"data", "index", "filter", "summary", "metadata", "sstable"}
 
 	for _, fileType := range fileTypes {
 		files, _ := os.ReadDir("./" + fileType)
 
 		for _, f := range files {
 			fileName := f.Name()
-			fileRegex := fileType + "_" + fmt.Sprint(lsm_level) + "_\\d+.db"
+			fileRegex := fileType + "_" + fmt.Sprint(lsmLevel) + "_\\d+.db"
 
 			match, _ := regexp.Match(fileRegex, []byte(fileName))
 
@@ -305,6 +307,7 @@ func GetSSTableIndex(lsm_level int) int {
 	}
 	return maxIndex + 1
 }
+
 func readFiles(maxID int, key string) {
 	folderPaths := []string{"filter", "summary", "index", "sstable"}
 	fmt.Println(folderPaths)
@@ -367,11 +370,10 @@ func readFiles(maxID int, key string) {
 				fmt.Printf("Error reading from summary file: %s\n", errRead2)
 				return
 			}
-
 		}
 	}
-
 }
+
 func openFileInFolder(folderPath, fileName string) (*os.File, error) {
 	filePath := filepath.Join(folderPath, fileName)
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, os.ModePerm)
@@ -481,114 +483,183 @@ func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int, error) {
 	return decodedEntry, bytesRead, nil
 }
 
-func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel int, multipleFiles bool) error {
-	if multipleFiles {
-		sortedKeys := mt.GetSortedEntries()
-		index := GetSSTableIndex(lsmLevel)
-		bf := NewBloomFilterWithSize(50000, 0.2)
-		mtree := MerkleTree.NewMerkleTree()
-		tableIndex := make(map[string]uint64)
-		summaryIndex := make(map[string]uint64)
-		last := ""
-		var totalMemtableSize uint64 = 0
-		var totalIndexSize uint64 = 0
+// Fali varijabilni enkoding i prosljedjivanje puta fajlova parametrom. Mislim da i racunanje vrijednosti koje se zapisuju i index summary isto ne radi.
+// Molim onoga ko je radio sa varijabilnim enkodingom da drugom mjestu da ga doda i ovdje. 🙏
+// Osim toga, trebalo bi da je Flush zavrsen do kraja, sto ukljucuje tacke, podtacke, dodatne zahtjeve...
+func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterExpectedElements int, bloomFilterFalsePositiveRate float64, multipleFiles bool) error {
+	sortedKeys := mt.GetSortedEntries()
+	bf := NewBloomFilterWithSize(bloomFilterExpectedElements, bloomFilterFalsePositiveRate)
+	mtree := MerkleTree.NewMerkleTree()
+	tableIndex := make(map[string]uint64)
+	summaryIndex := make(map[string]uint64)
+	last := ""
+	index := GetSSTableIndex(lsmLevel)
+	var totalMemtableSize uint64 = 0
+	var totalIndexSize uint64 = 0
 
-		dataFile, err := os.Create("./sstable/sstable" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
-		if err != nil {
-			return err
-		}
-		defer dataFile.Close()
-		filterFile, err := os.Create("./filter/filter_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
-		if err != nil {
-			return err
-		}
-		defer filterFile.Close()
-		metadataFile, err := os.Create("./metadata/metadata_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
-		if err != nil {
-			return err
-		}
-		defer metadataFile.Close()
-		indexFile, err := os.Create("./index/index_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
-		if err != nil {
-			return err
-		}
-		defer indexFile.Close()
-		summaryFile, err := os.Create("./summary/summary_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db")
-		if err != nil {
-			return err
-		}
-		defer summaryFile.Close()
+	// Put za fajlove se valjda treba proslijediti kao parametar. Ko zna kako ce to izgledati moze da doda parametar i izmjeni ovdje puteve. Ako mijenjate sablon imenovanja fajla,
+	// onda izmjenite i regex u funkciji GetSSTableIndex.
+	dataFilePath := "./data/data" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	filterFilePath := "./filter/filter_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	metadataFilePath := "./metadata/metadata_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	indexFilePath := "./index/index_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	summaryFilePath := "./summary/summary_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	sstableFilePath := "./sstable/sstable" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
 
-		for i, key := range sortedKeys {
-			entry, err := mt.Get([]byte(key))
+	// OBJASNJENJE IMENA FAJLOVA (jer znam da ce biti zabune...)
+	//
+	// data		- Cuva serijalizovane podatke jedne Memtabele. To je, dakle, jedan SSTable/SSTable zapis
+	// 			  Pojedinacan entry je serijalizovan u formatu   -   crc - timestamp - tombstone - key size - value size - key - value
+	//			  Ako je tombstone == true, onda su value size i value polja izostavljeni.
+	// filter	- Cuva serijalizovan BloomFilter koji odgovara samo jednoj Memtabeli
+	// 			  Ne znam u kojem formatu je serijalizovan filter. To se nalazi u BloomFilter fajlu i mislim da ga je najbolje koristiti tako da se citav fajl procita,
+	//			  ti podaci deserijalizuju u novi BloomFilter, a zatim se on koristi.
+	// metadata - Cuva serijalizovan MerkleTree koji odgovara samo jednoj Memtabeli
+	// 			  Za formatiranje fajla vazi isto sto sam rekao i za BloomFilter.
+	// index	- Cuva index podatke koji odgovaraju samo jednoj Memtabeli
+	// 			  U fajl se redom zapisuju sljedeci podaci - duzina kljuca, kljuc, offset. Offset predstavlja mjesto u data fajlu, relativno na pocetak tog data fajla,
+	//			  na kojem se nalazi entry koji odgovara kljucu kod tog offseta.
+	// summary	- Cuva summary podatke koji odgovaraju samo jednom indexu
+	// 			  U fajl su prvo zapisani sljedeci podaci - duzina prvog kljuca koji je zapisan u index fajlu, prvi kljuc koji je zapisan u index fajlu,
+	//			  duzina posljednjeg kljuca koji je zapisan u index fajlu, posljednji kljuc koji je zapisan u index fajlu.
+	// 			  Nakon toga, redom se pisu podaci - duzina kljuc, kljuc, offset. Offset predstavlja mjesto u index fajlu, relativno na pocetak tog index fajla,
+	//			  na kojem se nalazi podatak o mjestu tog kljuca u data fajlu.
+	// sstable	- U jednom fajlu cuva serijalizovane podatke jedne Memtabele, kao i sve popratne strukture koje joj odgovaraju - BloomFilter, MerkleTree, index i summary.
+	// 			  Drugim rijecima, to je prethodnih pet fajlova zapisanih u jedan fajl.
+	//			  Pravi se kada se multipleFiles prosljedjena vrijednost jednaka false.
+	// 			  U sstable fajl, podaci iz ostalih fajlova se zapisuju sljedecim redosljedom - filter, summary, index, data, metadata.
+	//			  Podaci u njima su identicnog formata kao i kada se zapisuju zajedno.
+	//			  Razlika je u tome sto se prije svakog dijela nalazi broj koji govori duzinu tog dijela. Dakle - duzina filter podataka, filter podaci, duzina summary podataka, summary podaci...
+	//			  Stoga, ako zelite da citate data npr, prvo procitate prvi broj (koji predstavlja duzinu filter dijela), pa skocite za toliko bajtova unaprijed,
+	//			  pa citate sljedeci broj i skacete toliko bajtova, pa onda to uradite jos jednom da preskocite i index dio.
+	//			  Nakon toga, trebalo bi da se nalazite kod broja koji govori duzinu data dijela. Procitajte ga i onda se u sljedecih toliko bajtova nalazi citav data dio.
+
+	dataFile, err := os.Create(dataFilePath)
+	if err != nil {
+		return err
+	}
+	filterFile, err := os.Create(filterFilePath)
+	if err != nil {
+		return err
+	}
+	metadataFile, err := os.Create(metadataFilePath)
+	if err != nil {
+		return err
+	}
+	indexFile, err := os.Create(indexFilePath)
+	if err != nil {
+		return err
+	}
+	summaryFile, err := os.Create(summaryFilePath)
+	if err != nil {
+		return err
+	}
+
+	for i, key := range sortedKeys {
+		entry, err := mt.Get([]byte(key))
+		if err != nil {
+			return err
+		}
+
+		bf.Insert(key)
+		mtree.AddElement([]byte(key))
+
+		serializedEntry := SerializeMemtableEntry(*entry)
+		_, err = dataFile.Write(serializedEntry)
+
+		if i%indexSparsity == 0 {
+			tableIndex[key] = totalMemtableSize
+
+			if i%(indexSparsity*summarySparsity) == 0 {
+				summaryIndex[key] = totalIndexSize
+			}
+
+			totalIndexSize += uint64(len(fmt.Sprint(len(key))))
+			totalIndexSize += uint64(len(key))
+			totalIndexSize += uint64(len(fmt.Sprint(tableIndex[key]))) // Mislim da se ovdje nalazi neka greska? Sad sam preumoran da je nadjem
+			last = key
+		}
+		totalMemtableSize += uint64(len(serializedEntry))
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// Serialize bloom filter
+	_, err = filterFile.Write(SerializeBloomFilter(bf))
+	if err != nil {
+		return err
+	}
+
+	// Serialize merkle tree
+	metadataFile.Write(mtree.SerializeTree())
+
+	// Serialize table index
+	indexEntries := make([]string, 0)
+	for key := range tableIndex {
+		indexEntries = append(indexEntries, key)
+	}
+	sort.Strings(indexEntries)
+
+	for _, key := range indexEntries {
+		indexFile.Write([]byte{byte(len(key))})
+		indexFile.Write([]byte(key))
+		indexFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
+	}
+
+	// Serialize index summary
+	summaryFile.Write([]byte{byte(len(indexEntries[0]))}) // Ovdje mozda treba varijabilni enkoding
+	summaryFile.Write([]byte(indexEntries[0]))
+	summaryFile.Write([]byte{byte(len(last))})
+	summaryFile.Write([]byte(last))
+
+	summaryEntries := make([]string, 0)
+	for key := range summaryIndex {
+		summaryEntries = append(summaryEntries, key)
+	}
+	sort.Strings(summaryEntries)
+
+	for _, key := range summaryEntries {
+		summaryFile.Write([]byte{byte(len(key))})
+		summaryFile.Write([]byte(key))
+		summaryFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
+	}
+
+	// Multiple files == false
+	if !multipleFiles {
+		sstableFile, err := os.OpenFile(sstableFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			return err
+		}
+		defer sstableFile.Close()
+
+		for _, file := range []*os.File{filterFile, summaryFile, indexFile, dataFile, metadataFile} {
+			stat, err := file.Stat()
 			if err != nil {
-				return err
+				return errors.New("Greska pri citanju fajla " + stat.Name())
 			}
+			sstableFile.Write([]byte(fmt.Sprint(stat.Size()))) // Ovdje valjda fali varijabilni enkoding
 
-			bf.Insert(key)
-			mtree.AddElement([]byte(key))
-
-			serializedEntry := SerializeMemtableEntry(*entry)
-			_, err = dataFile.Write(serializedEntry)
-
-			if i%indexSparsity == 0 {
-				tableIndex[key] = totalMemtableSize
-
-				if i%(indexSparsity*summarySparsity) == 0 {
-					summaryIndex[key] = totalIndexSize
-				}
-
-				totalIndexSize += uint64(len(fmt.Sprint(len(key))))
-				totalIndexSize += uint64(len(key))
-				totalIndexSize += uint64(len(fmt.Sprint(tableIndex[key]))) // Mislim da se ovdje nalazi neka greska? Sad sam preumoran da je nadjem
-				last = key
-			}
-			totalMemtableSize += uint64(len(serializedEntry))
-
+			data, err := io.ReadAll(file)
 			if err != nil {
-				return err
+				return errors.New("Greska pri zapisivanju fajla " + stat.Name())
 			}
+			sstableFile.Write(data)
 		}
+	}
+	dataFile.Close()
+	indexFile.Close()
+	summaryFile.Close()
+	filterFile.Close()
+	metadataFile.Close()
 
-		// Serialize bloom filter
-		_, err = filterFile.Write(SerializeBloomFilter(bf))
-		if err != nil {
-			return err
-		}
-
-		// Serialize merkle tree
-		metadataFile.Write(mtree.SerializeTree())
-
-		// Serialize table index
-		indexEntries := make([]string, 0)
-		for key := range tableIndex {
-			indexEntries = append(indexEntries, key)
-		}
-		sort.Strings(indexEntries)
-
-		for _, key := range indexEntries {
-			indexFile.Write([]byte{byte(len(key))})
-			indexFile.Write([]byte(key))
-			indexFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
-		}
-
-		// Serialize index summary
-		summaryFile.Write([]byte{byte(len(indexEntries[0]))}) // Ovdje mozda treba varijabilni enkoding
-		summaryFile.Write([]byte(indexEntries[0]))
-		summaryFile.Write([]byte{byte(len(last))})
-		summaryFile.Write([]byte(last))
-
-		summaryEntries := make([]string, 0)
-		for key := range summaryIndex {
-			summaryEntries = append(summaryEntries, key)
-		}
-		sort.Strings(summaryEntries)
-
-		for _, key := range summaryEntries {
-			summaryFile.Write([]byte{byte(len(key))})
-			summaryFile.Write([]byte(key))
-			summaryFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
-		}
+	if !multipleFiles {
+		os.Remove(dataFilePath)
+		os.Remove(indexFilePath)
+		os.Remove(summaryFilePath)
+		os.Remove(filterFilePath)
+		os.Remove(metadataFilePath)
 	}
 
 	return nil
@@ -616,7 +687,7 @@ func main() {
 	// aaa := DeserializeMemtableEntry(aa)
 	// fmt.Print(aaa)
 
-	mt.Flush(2, 2, 1, true)
+	mt.Flush(2, 2, 1, 5000, 0.2, true)
 
 	// mt.PrintMemtable()
 
