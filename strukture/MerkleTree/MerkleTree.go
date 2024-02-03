@@ -48,10 +48,10 @@ func (mr *MerkleTree) CreateTree(filePath string) {
 	mr.buildInternalNodes()
 }
 
-// func (mr *MerkleTree) CreateTree() {
-// 	mr.buildLeaves()
-// 	mr.buildInternalNodes()
-// }
+func (mr *MerkleTree) CreateTreeWithElems() {
+	mr.buildLeaves()
+	mr.buildInternalNodes()
+}
 
 func (mr *MerkleTree) buildLeaves() {
 	for _, el := range mr.elements {
@@ -91,14 +91,26 @@ func (mr *MerkleTree) SerializeTree() []byte {
 	for len(queue) > 0 {
 		el := queue[0]
 		queue = queue[1:]
-		result = append(result, el.data[:]...)
-		result = append(result, '|')
+
+		// Manually append each byte from el.data1 to result
+		for i := 0; i < len(el.data); i++ {
+			result = append(result, el.data[i])
+		}
+
+		// Append separator '|' if there are more nodes
 		if el.left != nil {
 			queue = append(queue, el.left)
+			result = append(result, '|')
 		}
 		if el.right != nil {
 			queue = append(queue, el.right)
+			result = append(result, '|')
 		}
+	}
+
+	// Remove the trailing '|'
+	if len(result) > 0 {
+		result = result[:len(result)-1]
 	}
 	return result
 }

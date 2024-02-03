@@ -332,7 +332,7 @@ func readFiles(maxID int, key string) {
 			}
 
 			// Store the first 4 bytes into a variable
-			kljuc := buffer
+			// kljuc := buffer
 			folderIndex := folderPaths[2]
 			fileIndex := fmt.Sprintf("%s_1_%d.db", folderIndex, i)
 
@@ -485,6 +485,7 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 	}
 
 	// Serialize merkle tree
+	mtree.CreateTreeWithElems()
 	metadataFile.Write(mtree.SerializeTree())
 
 	// Serialize table index
