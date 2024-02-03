@@ -2,7 +2,6 @@ package strukture
 
 import (
 	MerkleTree "NASP_projekat2023/strukture/MerkleTree"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -397,7 +396,7 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 	metadataFilePath := "./metadata/metadata_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
 	indexFilePath := "./index/index_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
 	summaryFilePath := "./summary/summary_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
-	sstableFilePath := "./sstable/sstable_" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	sstableFilePath := "./sstable/sstable" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
 
 	// OBJASNJENJE IMENA FAJLOVA (jer znam da ce biti zabune...)
 	//
@@ -486,7 +485,6 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 	}
 
 	// Serialize merkle tree
-	mtree.CreateTreeWithElems()
 	metadataFile.Write(mtree.SerializeTree())
 
 	// Serialize table index
@@ -558,40 +556,6 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 
 	return nil
 }
-
-func DeleteSSTableFiles(lsmLevel, index int) error {
-	rootDir := "./"
-	fileTypes := []string{"data", "index", "filter", "summary", "metadata", "sstable"}
-
-	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		for _, fileType := range fileTypes {
-			fileName := fmt.Sprintf("%s_%d_%d.db", fileType, lsmLevel, index)
-			if strings.HasSuffix(info.Name(), fileName) {
-				err := os.Remove(path)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func MergeSSTable(numEntries []int, sstableFiles []*os.File) error {
 
 	entries := make(map[string]MemtableEntry)
@@ -599,13 +563,18 @@ func MergeSSTable(numEntries []int, sstableFiles []*os.File) error {
 	for i, sstableFile := range sstableFiles {
 		numEntry := numEntries[i]
 
+		// Extract lsmLevel from the file name
 		lsmLevel, index, err := extractLSMLevelAndIndex(sstableFile.Name())
 		if err != nil {
 			return err
 		}
 
 		for j := 0; j < numEntry; j++ {
-			entry, bytesRead, err := DeserializeMemtableEntryFromReader(sstableFile)
+			content, err := ioutil.ReadAll(sstableFile)
+			if err != nil {
+				return nil
+			}
+			entry, bytesRead, err := DeserializeMemtableEntry(content)
 			if err == io.EOF {
 				break
 			} else if err != nil {
@@ -652,6 +621,38 @@ func MergeSSTable(numEntries []int, sstableFiles []*os.File) error {
 
 	return nil
 }
+func DeleteSSTableFiles(lsmLevel, index int) error {
+	rootDir := "./"
+	fileTypes := []string{"data", "index", "filter", "summary", "metadata", "sstable"}
+
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		for _, fileType := range fileTypes {
+			fileName := fmt.Sprintf("%s_%d_%d.db", fileType, lsmLevel, index)
+			if strings.HasSuffix(info.Name(), fileName) {
+				err := os.Remove(path)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func extractLSMLevelAndIndex(fileName string) (int, int, error) {
 	parts := strings.Split(fileName, "_")
@@ -668,70 +669,8 @@ func extractLSMLevelAndIndex(fileName string) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-
 	return lsmLevel, index, nil
 }
-
-func DeserializeMemtableEntryFromReader(reader io.Reader) (MemtableEntry, int, error) {
-	buf := make([]byte, 4)
-	_, err := io.ReadFull(reader, buf)
-	if err != nil {
-		return MemtableEntry{}, 0, err
-	}
-	buf = buf[4:]
-
-	timestampBuf := make([]byte, binary.MaxVarintLen64)
-	_, err = io.ReadFull(reader, timestampBuf)
-	if err != nil {
-		return MemtableEntry{}, 0, err
-	}
-	timestamp, _ := binary.Uvarint(timestampBuf)
-
-	tombstoneBuf := make([]byte, 1)
-	_, err = io.ReadFull(reader, tombstoneBuf)
-	if err != nil {
-		return MemtableEntry{}, 0, err
-	}
-	tombstone := tombstoneBuf[0] == 0
-
-	keyLenBuf := make([]byte, binary.MaxVarintLen64)
-	_, err = io.ReadFull(reader, keyLenBuf)
-	if err != nil {
-		return MemtableEntry{}, 0, err
-	}
-	keyLen, _ := binary.Uvarint(keyLenBuf)
-	keyBuf := make([]byte, keyLen)
-	_, err = io.ReadFull(reader, keyBuf)
-	if err != nil {
-		return MemtableEntry{}, 0, err
-	}
-	var valueLenBuf []byte
-	var value []byte
-	if !tombstone {
-		valueLenBuf := make([]byte, binary.MaxVarintLen64)
-		_, err = io.ReadFull(reader, valueLenBuf)
-		if err != nil {
-			return MemtableEntry{}, 0, err
-		}
-		valueLen, _ := binary.Uvarint(valueLenBuf)
-		value = make([]byte, valueLen)
-		_, err = io.ReadFull(reader, value)
-		if err != nil {
-			return MemtableEntry{}, 0, err
-		}
-	}
-
-	decodedEntry := MemtableEntry{
-		Timestamp: time.Unix(int64(timestamp), 0),
-		Tombstone: tombstone,
-		Key:       keyBuf,
-		Value:     value,
-	}
-
-	bytesRead := len(timestampBuf) + len(tombstoneBuf) + len(keyLenBuf) + int(keyLen) + len(valueLenBuf) + len(value)
-	return decodedEntry, bytesRead, nil
-}
-
 func main() {
 	mt, err := NewMemtable(100, 10, 10, "b_tree")
 	if err != nil {
