@@ -2,6 +2,8 @@ package strukture
 
 import (
 	MerkleTree "NASP_projekat2023/strukture/MerkleTree"
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -447,11 +449,38 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 		return err
 	}
 
+	dictFile, err := os.Create("dictionary.db")
+	if err != nil {
+		return err
+	}
+	defer dictFile.Close()
+
+	newKey := uint64(0)
+	var buffer bytes.Buffer
+
 	for i, key := range sortedKeys {
 		entry, err := mt.Get([]byte(key))
 		if err != nil {
 			return err
 		}
+
+		// dictionary encoding za entry.Key
+		oldKey := entry.Key
+
+		temp := make([]byte, binary.MaxVarintLen64)
+		n := binary.PutUvarint(temp, newKey)
+		entry.Key = temp[:n]
+
+		buffer.Reset()
+		n = binary.PutUvarint(temp, uint64(len(oldKey)))
+		buffer.Write(temp[:n])
+		dictFile.Write(buffer.Bytes())
+		dictFile.Write(oldKey)
+
+		buffer.Reset()
+		n = binary.PutUvarint(temp, newKey)
+		buffer.Write(temp[:n])
+		dictFile.Write(buffer.Bytes())
 
 		bf.Insert(key)
 		mtree.AddElement([]byte(key))
@@ -468,7 +497,7 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 
 			totalIndexSize += uint64(len(fmt.Sprint(len(key))))
 			totalIndexSize += uint64(len(key))
-			totalIndexSize += uint64(len(fmt.Sprint(tableIndex[key]))) // Mislim da se ovdje nalazi neka greska? Sad sam preumoran da je nadjem
+			totalIndexSize += uint64(len(fmt.Sprint(tableIndex[key])))
 			last = key
 		}
 		totalMemtableSize += uint64(len(serializedEntry))
@@ -476,6 +505,8 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 		if err != nil {
 			return err
 		}
+
+		newKey++
 	}
 
 	// Serialize bloom filter
@@ -495,15 +526,31 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 	sort.Strings(indexEntries)
 
 	for _, key := range indexEntries {
-		indexFile.Write([]byte{byte(len(key))})
+		buffer.Reset()
+		temp := make([]byte, binary.MaxVarintLen64)
+		n := binary.PutUvarint(temp, uint64(len(key)))
+		buffer.Write(temp[:n])
+		indexFile.Write(buffer.Bytes())
 		indexFile.Write([]byte(key))
-		indexFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
+
+		buffer.Reset()
+		n = binary.PutUvarint(temp, uint64(tableIndex[key]))
+		buffer.Write(temp[:n])
+		indexFile.Write(buffer.Bytes())
 	}
 
 	// Serialize index summary
-	summaryFile.Write([]byte{byte(len(indexEntries[0]))}) // Ovdje mozda treba varijabilni enkoding
+	buffer.Reset()
+	temp := make([]byte, binary.MaxVarintLen64)
+	n := binary.PutUvarint(temp, uint64(len(indexEntries[0])))
+	buffer.Write(temp[:n])
+	summaryFile.Write(buffer.Bytes())
 	summaryFile.Write([]byte(indexEntries[0]))
-	summaryFile.Write([]byte{byte(len(last))})
+
+	buffer.Reset()
+	n = binary.PutUvarint(temp, uint64(len(last)))
+	buffer.Write(temp[:n])
+	summaryFile.Write(buffer.Bytes())
 	summaryFile.Write([]byte(last))
 
 	summaryEntries := make([]string, 0)
@@ -513,9 +560,18 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 	sort.Strings(summaryEntries)
 
 	for _, key := range summaryEntries {
-		summaryFile.Write([]byte{byte(len(key))})
+		buffer.Reset()
+		temp := make([]byte, binary.MaxVarintLen64)
+		n := binary.PutUvarint(temp, uint64(len(key)))
+		buffer.Write(temp[:n])
+		summaryFile.Write(buffer.Bytes())
 		summaryFile.Write([]byte(key))
-		summaryFile.Write([]byte(fmt.Sprint(tableIndex[key]))) // Ovdje valjda fali varijabilni enkoding
+
+		buffer.Reset()
+		n = binary.PutUvarint(temp, uint64(tableIndex[key]))
+		buffer.Write(temp[:n])
+		summaryFile.Write(buffer.Bytes())
+
 	}
 
 	// Multiple files == false
@@ -531,7 +587,12 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 			if err != nil {
 				return errors.New("Greska pri citanju fajla " + stat.Name())
 			}
-			sstableFile.Write([]byte(fmt.Sprint(stat.Size()))) // Ovdje valjda fali varijabilni enkoding
+
+			buffer.Reset()
+			temp := make([]byte, binary.MaxVarintLen64)
+			n := binary.PutUvarint(temp, uint64(stat.Size()))
+			buffer.Write(temp[:n])
+			sstableFile.Write(buffer.Bytes())
 
 			data, err := io.ReadAll(file)
 			if err != nil {
