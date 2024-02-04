@@ -477,7 +477,7 @@ func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterE
 			return err
 		}
 	}
-
+	mtree.CreateTreeWithElems()
 	// Serialize bloom filter
 	_, err = filterFile.Write(SerializeBloomFilter(bf))
 	if err != nil {
