@@ -74,7 +74,7 @@ func (mp *Mempool) Put(entry *MemtableEntry) error {
 	if mp.tables[mp.activeTableIdx].IsFull() {
 		nextIdx := (mp.activeTableIdx + 1) % mp.tableCount
 		if mp.IsFull() {
-			err = mp.tables[nextIdx].Flush()
+			err = mp.tables[nextIdx].Flush(0, 0, 0, 0, 0.0, false)
 			return err
 		}
 		mp.activeTableIdx = nextIdx
