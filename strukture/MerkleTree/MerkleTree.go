@@ -85,6 +85,33 @@ func (mr *MerkleTree) buildInternalNodes() {
 	mr.root = queue[0]
 }
 
+func (mr *MerkleTree) VerifyTree(newElements [][]byte) ([]int, error) {
+	newTree := NewMerkleTree()
+	newTree.elements = newElements
+	newTree.CreateTreeWithElems()
+
+	if !bytes.Equal(mr.root.data[:], newTree.root.data[:]) {
+		return compareNodes(mr.root, newTree.root, 0), nil
+	}
+
+	return []int{}, nil
+}
+
+func compareNodes(oldNode, newNode *Node, index int) []int {
+	var changedIndices []int
+
+	if !bytes.Equal(oldNode.data[:], newNode.data[:]) {
+		if oldNode.left == nil && oldNode.right == nil {
+			changedIndices = append(changedIndices, index)
+		} else {
+			changedIndices = append(changedIndices, compareNodes(oldNode.left, newNode.left, index*2)...)
+			changedIndices = append(changedIndices, compareNodes(oldNode.right, newNode.right, index*2+1)...)
+		}
+	}
+
+	return changedIndices
+}
+
 func (mr *MerkleTree) SerializeTree() []byte {
 	var result []byte
 	queue := []*Node{mr.root}
