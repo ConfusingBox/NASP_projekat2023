@@ -46,34 +46,18 @@ func loadConfig(filename string) (Config, error) {
 	return config, nil
 }
 
-func main() {
-	config, err := loadConfig("config.json")
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-
+func probabilisticStructs(config Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
-
 	cms := strukture.NewCountMinSketch(config.MemTableSize, config.SkipListDepth)
-
 	hll := strukture.NewHyperLogLog(config.HyperLogLogPrecision)
 
-	/*
-		data := "NestoNesto"
-		sh, err := strukture.NewSimHashWithFingerprint(data, config.SimHashHashSize)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-	*/
-
 	for {
-		fmt.Println("Main Menu:")
+		fmt.Println("Probabilistic Structures Menu:")
 		fmt.Println("1. Bloom Filter")
 		fmt.Println("2. Count-Min Sketch")
 		fmt.Println("3. HyperLogLog")
 		fmt.Println("4. SimHash")
-		fmt.Println("x. Exit")
+		fmt.Println("x. Back")
 
 		var choice string
 		fmt.Print("Enter your choice: ")
@@ -87,19 +71,50 @@ func main() {
 		case "3":
 			strukture.HLLMenu(hll)
 		case "4":
-			/*
-				data := "NestoNesto"
-				sh, err := strukture.NewSimHashWithFingerprint(data, config.SimHashHashSize)
-				if err != nil {
-					fmt.Println("Error:", err)
-					return
-				}
-				strukture.SimHashMenu(sh)
-			*/
+			// SimHash dodatak
 		case "x":
+			return
+		default:
+			fmt.Println("Pogrešan izbor. Pokušajte opet.")
+		}
+	}
+}
+
+func main() {
+	config, err := loadConfig("config.json")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	for {
+		fmt.Println("Main Menu:")
+		fmt.Println("1. Put")
+		fmt.Println("2. Get")
+		fmt.Println("3. Delete")
+		fmt.Println("4. Koristi probabilisticke strukture")
+		fmt.Println("5. ClearLog")
+		fmt.Println("x. Izlaz")
+
+		var choice string
+		fmt.Print("Enter your choice: ")
+		fmt.Scan(&choice)
+
+		switch strings.ToLower(choice) {
+		case "1":
+			// Put operation
+		case "2":
+			// Get operation
+		case "3":
+			// Delete operation
+		case "4":
+			probabilisticStructs(config)
+		case "5":
+			// Ciscenje Log-a
+		case "x":
+			fmt.Println("Izlaz")
 			os.Exit(0)
 		default:
-			fmt.Println("Invalid choice. Please try again.")
+			fmt.Println("Pogrešan izbor. Pokušajte opet.")
 		}
 	}
 }
