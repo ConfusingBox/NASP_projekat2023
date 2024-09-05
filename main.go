@@ -31,6 +31,12 @@ type Config struct {
 	SimHashHashSize              int     `json:"sim_hash_hash_size"`
 }
 
+func put() {}
+
+func get() {}
+
+func delete() {}
+
 func loadConfig(filename string) (Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -66,10 +72,16 @@ func probabilisticStructs(config Config) {
 		switch strings.ToLower(choice) {
 		case "1":
 			strukture.BloomFilterMenu(bf)
+			serializedBf := strukture.SerializeBloomFilter(bf)
+
 		case "2":
 			strukture.CMSMenu(cms)
+			serializedCMS := cms.SerializeCMS()
+
 		case "3":
 			strukture.HLLMenu(hll)
+			serializedHLL := hll.SerializeHLL()
+
 		case "4":
 			// SimHash dodatak
 		case "x":

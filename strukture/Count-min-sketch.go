@@ -40,7 +40,7 @@ func (countminsketch *CountMinSketch) Add(item string) {
 	}
 }
 
-func (countminsketch *CountMinSketch) SerializeCMS(filepath string) ([]byte, error) {
+func (countminsketch *CountMinSketch) SerializeCMS() []byte {
 	widthBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(widthBytes, uint64(countminsketch.Width))
 
@@ -66,7 +66,7 @@ func (countminsketch *CountMinSketch) SerializeCMS(filepath string) ([]byte, err
 	returnArray = append(returnArray, gammaBytes...)
 	returnArray = append(returnArray, matrixBytes...)
 
-	return returnArray, nil
+	return returnArray
 }
 
 func DeserializeCMS(data []byte) (*CountMinSketch, error) {
