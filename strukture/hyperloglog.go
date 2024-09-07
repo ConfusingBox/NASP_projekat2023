@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"os"
 	"strings"
 )
 
@@ -134,6 +133,7 @@ func HLLMenu(hll *HyperLogLog) {
 			fmt.Scan(&item)
 			hll.Add(item)
 			fmt.Println("Element dodat u HyperLogLog.")
+			//hll.SerializeHLL()
 		case "2":
 			estimate := hll.Estimate()
 			fmt.Printf("Procenjena kardinalnost: %f\n", estimate)
@@ -151,7 +151,8 @@ func HLLMenu(hll *HyperLogLog) {
 				fmt.Println("Pogresan unos.")
 			}
 		case "x":
-			os.Exit(0)
+			fmt.Println("Izlazak iz HyperLogLog menija.")
+			return
 		default:
 			fmt.Println("Pogresan unos. Molimo pokusajte ponovo.")
 		}

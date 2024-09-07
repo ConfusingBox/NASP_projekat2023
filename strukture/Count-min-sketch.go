@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
 	"strings"
 )
 
@@ -133,6 +132,7 @@ func CMSMenu(cms *CountMinSketch) {
 			fmt.Scan(&item)
 			count := cms.Count(item)
 			fmt.Printf("Element '%s' se pojavljuje %d puta.\n", item, count)
+			//cms.SerializeCMS()
 		case "3":
 			var choice2 string
 			fmt.Print("Da li ste sigurni?\n1. Da\n2. Ne\n")
@@ -147,7 +147,8 @@ func CMSMenu(cms *CountMinSketch) {
 				fmt.Println("Pogresan unos.")
 			}
 		case "x":
-			os.Exit(0)
+			fmt.Println("Izlazak iz Count-Min Sketch menija.")
+			return
 		default:
 			fmt.Println("Pogresan unos. Molimo pokusajte ponovo.")
 		}

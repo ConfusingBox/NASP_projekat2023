@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
 	"strings"
 
 	hashfunc "NASP_projekat2023/utils"
@@ -109,9 +108,10 @@ func BloomFilterMenu(bf *BloomFilter) {
 			fmt.Scan(&key)
 			bf.Insert(key)
 			fmt.Println("element je dodat u bloomfilter")
+			//SerializeBloomFilter(bf)
 		case "3":
 			var choice2 string
-			fmt.Print("Da li ste sigurni?\n1. Da\n 2. Ne")
+			fmt.Print("Da li ste sigurni?\n1. Da\n2. Ne")
 			fmt.Scan(&choice2)
 			switch strings.ToLower(choice2) {
 			case "1":
@@ -123,7 +123,8 @@ func BloomFilterMenu(bf *BloomFilter) {
 				fmt.Println("Pogrešan unos")
 			}
 		case "x":
-			os.Exit(0)
+			fmt.Println("Izlazak iz BloomFilter menija.")
+			return
 		default:
 			fmt.Println("Pogrešan unos")
 		}

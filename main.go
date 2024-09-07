@@ -2,34 +2,11 @@ package main
 
 import (
 	"NASP_projekat2023/strukture"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 )
-
-type Config struct {
-	BloomFilterFalsePositiveRate float64 `json:"bloom_filter_false_positive_rate"`
-	BloomFilterExpectedElements  int     `json:"bloom_filter_expected_elements"`
-	SkipListDepth                int     `json:"skip_list_depth"`
-	HyperLogLogPrecision         int     `json:"hyperloglog_precision"`
-	WalDirectory                 string  `json:"wal_directory"`
-	WalBufferSize                int     `json:"wal_buffer_size"`
-	WalSegmentSize               int     `json:"wal_segment_size"`
-	BtreeDegree                  int     `json:"btree_degree"`
-	MemTableThreshold            int     `json:"mem_table_threshold"`
-	MemTableSize                 int     `json:"mem_table_size"`
-	MemTableType                 string  `json:"mem_table_type"`
-	MemPoolSize                  int     `json:"mem_pool_size"`
-	SummaryDensity               int     `json:"summary_density"`
-	IndexDensity                 int     `json:"index_density"`
-	SsTableMultipleFiles         bool    `json:"ss_table_multiple_files"`
-	SsTableDirectory             string  `json:"ss_table_directory"`
-	CacheSize                    int     `json:"cache_size"`
-	SimHashHashSize              int     `json:"sim_hash_hash_size"`
-}
 
 func put() {}
 
@@ -37,22 +14,7 @@ func get() {}
 
 func delete() {}
 
-func loadConfig(filename string) (Config, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return Config{}, err
-	}
-
-	var config Config
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		return Config{}, err
-	}
-
-	return config, nil
-}
-
-func probabilisticStructs(config Config) {
+func probabilisticStructs(config *Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
 	cms := strukture.NewCountMinSketch(config.MemTableSize, config.SkipListDepth)
 	hll := strukture.NewHyperLogLog(config.HyperLogLogPrecision)
@@ -73,15 +35,15 @@ func probabilisticStructs(config Config) {
 		case "1":
 			strukture.BloomFilterMenu(bf)
 			serializedBf := strukture.SerializeBloomFilter(bf)
-
+			fmt.Println(serializedBf)
 		case "2":
 			strukture.CMSMenu(cms)
 			serializedCMS := cms.SerializeCMS()
-
+			fmt.Println(serializedCMS)
 		case "3":
 			strukture.HLLMenu(hll)
 			serializedHLL := hll.SerializeHLL()
-
+			fmt.Println(serializedHLL)
 		case "4":
 			// SimHash dodatak
 		case "x":
@@ -93,7 +55,7 @@ func probabilisticStructs(config Config) {
 }
 
 func main() {
-	config, err := loadConfig("config.json")
+	config, err := LoadConfigValues("config.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -121,7 +83,7 @@ func main() {
 		case "4":
 			probabilisticStructs(config)
 		case "5":
-			// Ciscenje Log-a
+			// Clear Log
 		case "x":
 			fmt.Println("Izlaz")
 			os.Exit(0)
