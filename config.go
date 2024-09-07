@@ -33,7 +33,24 @@ func LoadConfigValues(filename string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %v", err)
 	}
 
-	var config Config
+	config := Config{BloomFilterFalsePositiveRate: 0.2,
+		BloomFilterExpectedElements: 50000,
+		SkipListDepth:               10,
+		HyperLogLogPrecision:        10,
+		WalDirectory:                "data/log",
+		WalBufferSize:               100,
+		WalSegmentSize:              1024,
+		BtreeDegree:                 10,
+		MemTableThreshold:           70,
+		MemTableSize:                10000,
+		MemTableType:                "skip_list",
+		MemPoolSize:                 10,
+		SummaryDensity:              5,
+		IndexDensity:                5,
+		SsTableMultipleFiles:        true,
+		SsTableDirectory:            "data/sstable",
+		CacheSize:                   20,
+		SimHashHashSize:             8}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config: %v", err)
