@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 )
 
-// Config structure holding all configuration values
 type Config struct {
 	BloomFilterFalsePositiveRate float64 `json:"bloom_filter_false_positive_rate"`
 	BloomFilterExpectedElements  int     `json:"bloom_filter_expected_elements"`
@@ -28,7 +27,6 @@ type Config struct {
 	SimHashHashSize              int     `json:"sim_hash_hash_size"`
 }
 
-// LoadConfigValues loads the configuration from a file
 func LoadConfigValues(filename string) (*Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
