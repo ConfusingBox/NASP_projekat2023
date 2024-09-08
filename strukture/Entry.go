@@ -60,11 +60,14 @@ func CreateEntry(key string, data []byte, tombstone uint8) *Entry {
 func (entry Entry) ToByteArray() []byte {
 	byteArray := make([]byte, 0)
 
-	binary.BigEndian.AppendUint32(byteArray, entry.CRC)
-	binary.BigEndian.AppendUint64(byteArray, uint64(time.Time.UnixMicro(entry.timestamp)))
+	byteArray = binary.BigEndian.AppendUint32(byteArray, entry.CRC)
+	byteArray = binary.BigEndian.AppendUint64(byteArray, uint64(time.Time.UnixMicro(entry.timestamp)))
+
 	byteArray = append(byteArray, entry.tombstone)
-	binary.BigEndian.AppendUint64(byteArray, entry.keySize)
-	binary.BigEndian.AppendUint64(byteArray, entry.valueSize)
+
+	byteArray = binary.BigEndian.AppendUint64(byteArray, entry.keySize)
+	byteArray = binary.BigEndian.AppendUint64(byteArray, entry.valueSize)
+
 	byteArray = append(byteArray, []byte(entry.key)...)
 	byteArray = append(byteArray, []byte(entry.value)...)
 

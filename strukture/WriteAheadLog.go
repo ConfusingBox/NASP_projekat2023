@@ -57,10 +57,10 @@ func FindCurrentWriteAheadLogIndex() (int64, error) {
 
 	for _, file := range files {
 		fileName := file.Name()
-		indexInName := strings.Split(fileName, "wal_")
-		indexInName = strings.Split(fileName, ".bin")
+		indexInName := strings.Split(fileName, "wal_")[1]
+		indexInName = strings.Split(indexInName, ".bin")[0]
 
-		index, err := strconv.ParseInt(indexInName[0], 10, 64)
+		index, err := strconv.ParseInt(string(indexInName), 10, 64)
 		if err != nil {
 			return 0, err
 		}
