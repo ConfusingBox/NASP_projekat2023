@@ -23,7 +23,7 @@ type Config struct {
 	BTreeDegree                  int64   `json:"btree_degree"`
 	MemTableThreshold            float64 `json:"mem_table_threshold"`
 	MemTableSize                 int64   `json:"mem_table_size"`
-	MemTableType                 string  `json:"mem_table_type"`
+	MemTableType                 int64   `json:"mem_table_type"`
 	MemPoolSize                  int64   `json:"mem_pool_size"`
 	SummaryDensity               int64   `json:"summary_density"`
 	IndexDensity                 int64   `json:"index_density"`
@@ -46,7 +46,7 @@ var DefaultConfig = Config{
 	BTreeDegree:                  10,
 	MemTableThreshold:            70.0,
 	MemTableSize:                 10000,
-	MemTableType:                 "skip_list",
+	MemTableType:                 1,
 	MemPoolSize:                  10,
 	SummaryDensity:               5,
 	IndexDensity:                 5,
@@ -99,7 +99,10 @@ func LoadConfigValues(filepath string) (*Config, error) {
 	if config.MemTableSize <= 0 {
 		config.MemTableSize = DefaultConfig.MemTableSize
 	}
-	if config.MemTableType == "" {
+	if config.MemTableType < 1 {
+		config.MemTableType = DefaultConfig.MemTableType
+	}
+	if config.MemTableType > 3 {
 		config.MemTableType = DefaultConfig.MemTableType
 	}
 	if config.MemPoolSize <= 0 {

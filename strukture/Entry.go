@@ -62,12 +62,9 @@ func (entry Entry) ToByteArray() []byte {
 
 	byteArray = binary.BigEndian.AppendUint32(byteArray, entry.CRC)
 	byteArray = binary.BigEndian.AppendUint64(byteArray, uint64(time.Time.UnixMicro(entry.timestamp)))
-
 	byteArray = append(byteArray, entry.tombstone)
-
 	byteArray = binary.BigEndian.AppendUint64(byteArray, entry.keySize)
 	byteArray = binary.BigEndian.AppendUint64(byteArray, entry.valueSize)
-
 	byteArray = append(byteArray, []byte(entry.key)...)
 	byteArray = append(byteArray, []byte(entry.value)...)
 
