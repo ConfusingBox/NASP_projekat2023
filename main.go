@@ -39,7 +39,6 @@ func probabilisticStructs(config *utils.Config) {
 			serializedHLL := hll.SerializeHLL()
 			fmt.Println(serializedHLL)
 		case "4":
-			// SimHash dodatak
 		case "x":
 			return
 		default:
