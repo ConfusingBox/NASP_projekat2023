@@ -52,7 +52,6 @@ func probabilisticStructs(config *utils.Config) {
 func main() {
 	engine := Engine{}
 	engine.LoadStructures()
-
 	for {
 		fmt.Println("Main Menu:")
 		fmt.Println("1. Put")
@@ -88,10 +87,11 @@ func main() {
 			fmt.Print("Enter key: ")
 			fmt.Scan(&key)
 
-			if engine.Get(key) {
-				fmt.Print("Get operation successful.")
+			value, ok := engine.Get(key)
+			if ok {
+				fmt.Printf("Get operation successful. Value: %s\n", string(value))
 			} else {
-				fmt.Print("Get operation failed.")
+				fmt.Println("Get operation failed. Key not found.")
 			}
 		case "3":
 			// Delete operation

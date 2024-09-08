@@ -2,6 +2,7 @@ package strukture
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 )
 
@@ -23,6 +24,7 @@ func NewTokenBucket(rate int, bucketSize int) *TokenBucket {
 
 func (tb *TokenBucket) Allow() bool {
 	now := time.Now()
+	fmt.Println(tb)
 	tb.refill(now)
 
 	if tb.tokens > 0 {

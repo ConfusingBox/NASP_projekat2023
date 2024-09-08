@@ -1,21 +1,17 @@
 package strukture
 
-import (
-	"errors"
-)
-
 type Mempool struct {
 	memtableCount       int64
 	activeMemtableIndex int64
 	memtables           []*Memtable
 }
 
-func CreateMempool(memtableCount, size, structureUsed, skipListDepth, bTreeDegree int64, threshold float64) *Mempool {
-	memtables := make([]*Memtable, memtableCount)
-
-	var i int64
-	for i = 0; i < memtableCount; i++ {
-		memtables[i] = CreateMemtable(size, structureUsed, skipListDepth, bTreeDegree, threshold)
+/*
+func NewMempool(numTables, memtableSize, skipListDepth, BTreeDegree int, outputDir, memtableType string) (*Mempool, error) {
+	memtables := make([]*Memtable, numTables)
+	var err error
+	for i := 0; i < numTables; i++ {
+		memtables[i], err = NewMemtable(memtableSize, skipListDepth, BTreeDegree, memtableType)
 	}
 
 	return &Mempool{memtableCount, 0, memtables}

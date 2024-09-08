@@ -1,22 +1,5 @@
 package strukture
 
-import (
-	MerkleTree "NASP_projekat2023/strukture/MerkleTree"
-	"bytes"
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
-)
-
 const (
 	HASH_MAP  = 1
 	SKIP_LIST = 2
@@ -70,7 +53,7 @@ func (memtable *Memtable) Insert(entry *Entry) error {
 
 	if success && float64(memtable.currentSize*100) >= float64(memtable.size)*memtable.threshold {
 		memtable.currentSize = 0
-		memtable.Flush()
+		//memtable.Flush()
 	}
 
 	return nil
@@ -79,16 +62,26 @@ func (memtable *Memtable) Insert(entry *Entry) error {
 func (memtable Memtable) Get(key string) *Entry {
 	if memtable.structureUsed == HASH_MAP {
 		entry, ok := memtable.hashMap[key]
+		if entry.tombstone == 1 {
+			return nil
+		}
 		if ok {
 			return &entry
 		}
 	} else if memtable.structureUsed == SKIP_LIST {
 		entry := memtable.skipList.Get(key)
+		if entry.tombstone == 1 {
+			return nil
+		}
 		if entry != nil {
 			return entry
 		}
 	} else if memtable.structureUsed == B_TREE {
 		entry, ok := memtable.bTree.Search(key)
+		if entry.tombstone == 1 {
+			return nil
+		}
+
 		if ok {
 			return entry
 		}
@@ -96,6 +89,7 @@ func (memtable Memtable) Get(key string) *Entry {
 	return nil
 }
 
+/*
 func (memtable *Memtable) Delete(key string) error {
 	if memtable.structureUsed == HASH_MAP {
 		entry, ok := memtable.hashMap[key]
@@ -392,7 +386,8 @@ func openFolder(folderPath string) error {
 
 	return nil
 }
-
+*/
+/*
 // Fali varijabilni enkoding i prosljedjivanje puta fajlova parametrom. Mislim da i racunanje vrijednosti koje se zapisuju i index summary isto ne radi.
 // Molim onoga ko je radio sa varijabilnim enkodingom da drugom mjestu da ga doda i ovdje. 🙏
 // Osim toga, trebalo bi da je Flush zavrsen do kraja, sto ukljucuje tacke, podtacke, dodatne zahtjeve...
@@ -787,3 +782,4 @@ func main() {
 	data2, err := mt.Get([]byte("f"))
 	fmt.Print("\n", data2)
 }
+*/

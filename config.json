@@ -9,12 +9,14 @@
     "btree_degree": 10,
     "mem_table_threshold": 70,
     "mem_table_size": 10000,
-    "mem_table_type": "skip_list",
+    "mem_table_type": 1,
     "mem_pool_size": 10,
     "summary_density": 5,
     "index_density": 5,
     "ss_table_multiple_files": true,
     "ss_table_directory": "data/sstable",
     "cache_size": 20,
+    "token_bucket_capacity": 100,
+    "token_bucket_limit_seconds": 60,
     "sim_hash_hash_size": 8
 }

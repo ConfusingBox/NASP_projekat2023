@@ -153,63 +153,65 @@ func (s *SkipList) Print() {
 			}
 		}
 	}
+*/
+/*
+func TestSkipList() {
+	sl := CreateSkipList(4)
 
-func SkipListMain() {
-	// Create a new SkipList
-	s := CreateSkipList(3)
-
-	// Keys and values for testing
-	keys := [][]byte{
-		[]byte("a"),
-		[]byte("b"),
-		[]byte("c"),
-		[]byte("d"),
-		[]byte("e"),
-		[]byte("f"),
-		[]byte("g"),
-		[]byte("h"),
-		[]byte("i"),
-	}
-	values := [][]byte{
-		[]byte("1"),
-		[]byte("2"),
-		[]byte("3"),
-		[]byte("4"),
-		[]byte("5"),
-		[]byte("6"),
-		[]byte("7"),
-		[]byte("8"),
-		[]byte("9"),
+	entries := []Entry{
+		{key: "a", value: []byte("apple"), timestamp: time.Now(), tombstone: 0},
+		{key: "b", value: []byte("banana"), timestamp: time.Now(), tombstone: 0},
+		{key: "c", value: []byte("cherry"), timestamp: time.Now(), tombstone: 0},
+		{key: "d", value: []byte("date"), timestamp: time.Now(), tombstone: 0},
+		{key: "e", value: []byte("elderberry"), timestamp: time.Now(), tombstone: 0},
 	}
 
-	// Insert keys and values into the SkipList
-	for i, k := range keys {
-		// Add time.Now() as the fourth argument to NewMemtableEntry
-		entry := NewMemtableEntry(k, values[i], false, time.Now())
-		s.Insert(entry)
-	}
-
-	// Print the SkipList
-	fmt.Println("SkipList after insertion:")
-	s.Print()
-
-	// Search for keys in the SkipList
-	for _, k := range keys {
-		node := s.Get(k)
-		if node != nil {
-			fmt.Printf("Key %s found, value: %s\n", string(node.Key), string(node.Value))
+	fmt.Println("Inserting elements:")
+	for _, entry := range entries {
+		success := sl.Insert(entry)
+		if success {
+			fmt.Printf("Inserted key: %s\n", entry.key)
 		} else {
-			fmt.Printf("Key %s not found\n", string(k))
+			fmt.Printf("Failed to insert key: %s\n", entry.key)
 		}
 	}
 
-	// Delete keys from the SkipList
-	for _, k := range keys {
-		s.Delete(k)
+	fmt.Println("SkipList structure after inserts:")
+	sl.Print()
+
+	searchKeys := []string{"a", "c", "e", "z"}
+	fmt.Println("Searching for keys:")
+	for _, key := range searchKeys {
+		entry := sl.Get(key)
+		if entry != nil {
+			fmt.Printf("Found key '%s': Value: %s, Timestamp: %s, Tombstone: %v\n", key, entry.value, entry.timestamp, entry.tombstone)
+		} else {
+			fmt.Printf("Key '%s' not found.\n", key)
+		}
 	}
 
-	// Print the SkipList after deletion
-	fmt.Println("SkipList after deletion:")
-	s.Print()
+	deleteKeys := []string{"b", "d", "z"}
+	fmt.Println("Deleting keys:")
+	for _, key := range deleteKeys {
+		deleted := sl.Delete(key)
+		if deleted {
+			fmt.Printf("Deleted key '%s'.\n", key)
+		} else {
+			fmt.Printf("Key '%s' not found for deletion.\n", key)
+		}
+	}
+
+	fmt.Println("SkipList structure after deletions:")
+	sl.Print()
+
+	fmt.Println("Performing additional checks:")
+	for _, key := range searchKeys {
+		entry := sl.Get(key)
+		if entry != nil {
+			fmt.Printf("Key '%s' still exists: Value: %s, Timestamp: %s, Tombstone: %v\n", key, entry.value, entry.timestamp, entry.tombstone)
+		} else {
+			fmt.Printf("Key '%s' has been deleted or does not exist.\n", key)
+		}
+	}
 }
 */
