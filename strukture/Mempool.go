@@ -55,6 +55,14 @@ func (mempool *Mempool) Flush(bloomFilterExpectedElements, indexDensity, summary
 
 // STEFANE URADI OVO
 func (mp *Mempool) Find(key string) *Entry {
+
+	for i := mp.activeMemtableIndex; i >= 0; i-- {
+		entry := mp.memtables[i].Find(key)
+		if entry != nil {
+			return entry
+		}
+	}
+
 	return nil
 }
 

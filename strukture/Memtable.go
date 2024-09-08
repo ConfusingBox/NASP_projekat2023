@@ -328,6 +328,25 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 
 	return nil
 }
+func (memtable *Memtable) Find(key string) *Entry {
+	if memtable.structureUsed == HASH_MAP {
+		entry, ok := memtable.hashMap[key]
+		if ok {
+			return &entry
+		}
+	} else if memtable.structureUsed == SKIP_LIST {
+		entry := memtable.skipList.Get(key)
+		if entry != nil {
+			return entry
+		}
+	} else if memtable.structureUsed == B_TREE {
+		entry, ok := memtable.bTree.Search(key)
+		if ok {
+			return entry
+		}
+	}
+	return nil
+}
 
 /* Ne znam sto nam je delete uopste potreban?
 

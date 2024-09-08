@@ -8,6 +8,26 @@ import (
 	"strings"
 )
 
+func generateUniqueEntries(count int) map[string][]byte {
+	entries := make(map[string][]byte)
+	for i := 0; i < count; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		value := fmt.Sprintf("value_%d", i)
+		entries[key] = []byte(value)
+	}
+	return entries
+}
+func putManyEntries(engine *Engine, count int) {
+	entries := generateUniqueEntries(count)
+	for key, value := range entries {
+		if engine.Put(key, value) {
+			fmt.Printf("Put operation successful for key: %s\n", key)
+		} else {
+			fmt.Printf("Put operation failed for key: %s\n", key)
+		}
+	}
+}
+
 func probabilisticStructs(config *utils.Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
 	//cms := strukture.NewCountMinSketch(config.MemTableSize, config.SkipListDepth)
@@ -39,31 +59,10 @@ func probabilisticStructs(config *utils.Config) {
 			serializedHLL := hll.SerializeHLL()
 			fmt.Println(serializedHLL)
 		case "4":
-			// SimHash dodatak
 		case "x":
 			return
 		default:
 			fmt.Println("Pogrešan izbor. Pokušajte opet.")
-		}
-	}
-}
-
-func generateUniqueEntries(count int) map[string][]byte {
-	entries := make(map[string][]byte)
-	for i := 0; i < count; i++ {
-		key := fmt.Sprintf("key_%d", i)
-		value := fmt.Sprintf("value_%d", i)
-		entries[key] = []byte(value)
-	}
-	return entries
-}
-func putManyEntries(engine *Engine, count int) {
-	entries := generateUniqueEntries(count)
-	for key, value := range entries {
-		if engine.Put(key, value) {
-			fmt.Printf("Put operation successful for key: %s\n", key)
-		} else {
-			fmt.Printf("Put operation failed for key: %s\n", key)
 		}
 	}
 }
@@ -129,6 +128,9 @@ func main() {
 		case "4":
 			putManyEntries(&engine, 4500)
 			// probabilisticStructs(config)
+
+			putManyEntries(&engine, 5000)
+
 		case "5":
 			// Clear Log
 		case "x":
