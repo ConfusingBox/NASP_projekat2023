@@ -87,7 +87,13 @@ func (writeAheadLog *WriteAheadLog) Log(entry *Entry) error {
 		}
 	}
 
-	fmt.Print(entry.ToByteArray())
+	var key string
+	array := entry.ToByteArray()
+	if int64(len(array)) != 29+int64(entry.keySize)+int64(entry.valueSize) {
+		fmt.Print(array)
+		fmt.Scan(&key)
+	}
+
 	_, err := writeAheadLog.currentFile.Write(entry.ToByteArray())
 	if err != nil {
 		return err

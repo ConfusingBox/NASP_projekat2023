@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -75,10 +76,11 @@ func main() {
 	engine.LoadStructures()
 	//strukture.WriteAheadLogTest()
 
-	err := processWALFile(engine.Mempool, "data/wal/wal_0.bin", engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
+	err := processWALFile(engine.Mempool, engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
 	if err != nil {
 		fmt.Printf("Error processing WAL file: %v\n", err)
 	}
+
 	for {
 		fmt.Println("Main Menu:")
 		fmt.Println("1. Put")
@@ -146,30 +148,39 @@ func main() {
 	}
 }
 
-func processWALFile(mempool *strukture.Mempool, filePath string, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree int64, bloomFilterFalsePositiveRate float64) error {
-	file, err := os.Open(filePath)
+func processWALFile(mempool *strukture.Mempool, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree int64, bloomFilterFalsePositiveRate float64) error {
+	highestWALIndex, err := GetCurrentHighestWALIndex()
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	br := bufio.NewReader(file)
-
-	for {
-		entry, err := readEntryFromWAL(br)
+	var i int64
+	for i = 0; i < highestWALIndex; i++ {
+		file, err := os.Open("data/wal/wal_" + fmt.Sprint(i) + ".bin")
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
+			continue
 		}
-		if err := mempool.Insert(entry, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree, bloomFilterFalsePositiveRate); err != nil {
-			return err
+		defer file.Close()
+
+		br := bufio.NewReader(file)
+
+		for {
+			entry, err := readEntryFromWAL(br)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+			if err := mempool.Insert(entry, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree, bloomFilterFalsePositiveRate); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
+
 func readEntryFromWAL(br *bufio.Reader) (*strukture.Entry, error) {
 	crcBytes := make([]byte, 4)
 	if _, err := io.ReadFull(br, crcBytes); err != nil {
@@ -193,26 +204,18 @@ func readEntryFromWAL(br *bufio.Reader) (*strukture.Entry, error) {
 	}
 	keySize := binary.BigEndian.Uint64(keySizeBytes)
 
-	fmt.Printf("Read key size: %d\n", keySize)
-
-	if keySize > 1<<20 { // Example limit
-		return nil, fmt.Errorf("key size too large: %d", keySize)
-	}
-	keyBytes := make([]byte, keySize)
-	if _, err := io.ReadFull(br, keyBytes); err != nil {
-		return nil, err
-	}
-	key := string(keyBytes)
-
 	valueSizeBytes := make([]byte, 8)
 	if _, err := io.ReadFull(br, valueSizeBytes); err != nil {
 		return nil, err
 	}
 	valueSize := binary.BigEndian.Uint64(valueSizeBytes)
 
-	if valueSize > 1<<20 { // Example limit
-		return nil, fmt.Errorf("value size too large: %d", valueSize)
+	keyBytes := make([]byte, keySize)
+	if _, err := io.ReadFull(br, keyBytes); err != nil {
+		return nil, err
 	}
+	key := string(keyBytes)
+
 	valueBytes := make([]byte, valueSize)
 	if _, err := io.ReadFull(br, valueBytes); err != nil {
 		return nil, err
@@ -222,4 +225,27 @@ func readEntryFromWAL(br *bufio.Reader) (*strukture.Entry, error) {
 	entry := strukture.CreateEntry(key, value, tombstone)
 	fmt.Println(entry)
 	return entry, nil
+}
+
+func GetCurrentHighestWALIndex() (int64, error) {
+	var maxIndex int64 = -1
+
+	err := os.MkdirAll("data/wal", os.ModePerm)
+	if err != nil {
+		return 0, err
+	}
+
+	files, _ := os.ReadDir("data/wal")
+
+	for _, file := range files {
+		fileName := file.Name()
+		indexInName := strings.Split(fileName, "wal_")[1]
+		indexInName = strings.Split(indexInName, ".bin")[0]
+
+		index, _ := strconv.ParseInt(string(indexInName), 10, 64)
+
+		maxIndex = max(index, maxIndex)
+	}
+
+	return maxIndex, nil
 }
