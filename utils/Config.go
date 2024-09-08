@@ -53,6 +53,8 @@ var DefaultConfig = Config{
 	SSTableMultipleFiles:         true,
 	SSTableDirectory:             "data/sstable",
 	CacheSize:                    20,
+	TokenBucketCapacity:          100,
+	TokenBucketLimitSeconds:      60,
 	SimHashHashSize:              8,
 }
 

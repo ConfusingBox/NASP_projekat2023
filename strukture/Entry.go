@@ -53,6 +53,10 @@ type Entry struct {
 	// Mogli bismo ovo pretvoriti u 16B podatak tako sto bismo dodali 64 nule ispred ovoga, ali zasto?
 }
 
+func (e *Entry) GetValue() []byte {
+	return e.value
+}
+
 func CreateEntry(key string, data []byte, tombstone uint8) *Entry {
 	return &Entry{crc32.ChecksumIEEE(data), time.Now(), tombstone, uint64(len([]byte(key))), uint64(len(data)), key, data}
 }

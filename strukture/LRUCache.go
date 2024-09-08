@@ -56,6 +56,13 @@ func (l *LRUCache) Put(key []byte, value []byte) {
 	}
 }
 
+func (l *LRUCache) Remove(key []byte) {
+	if element, ok := l.cache[string(key)]; ok {
+		l.pages.Remove(element)
+		delete(l.cache, string(key))
+	}
+}
+
 // Print prints the keys and values of the LRUCache.
 func (l *LRUCache) Print() {
 	// Start from the head of the list
