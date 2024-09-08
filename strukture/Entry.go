@@ -1,114 +1,174 @@
 package strukture
 
 import (
-	hashfunc "NASP_projekat2023/utils"
 	"encoding/binary"
-	"errors"
+	"fmt"
+	"hash/crc32"
 	"time"
 )
 
-type MemtableEntry struct {
-	Key       []byte
-	Value     []byte
-	Timestamp time.Time
-	Tombstone bool
+const (
+	// Ovo ce pomoci pri deserijalizaciji Entry-ja.
+
+	CRC_SIZE        = 4
+	TIMESTAMP_SIZE  = 8
+	TOMBSTONE_SIZE  = 1
+	KEY_SIZE_SIZE   = 8
+	VALUE_SIZE_SIZE = 8
+
+	CRC_START        = 0
+	TIMESTAMP_START  = CRC_START + CRC_SIZE
+	TOMBSTONE_START  = TIMESTAMP_START + TIMESTAMP_SIZE
+	KEY_SIZE_START   = TOMBSTONE_START + TOMBSTONE_SIZE
+	VALUE_SIZE_START = KEY_SIZE_START + KEY_SIZE_SIZE
+	KEY_START        = VALUE_SIZE_START + VALUE_SIZE_SIZE
+)
+
+type Entry struct {
+	/*
+		+---------------+-----------------+---------------+---------------+-----------------+-...-+--...--+
+		|    CRC (4B)   | Timestamp (8B) | Tombstone(1B) | Key Size (8B) | Value Size (8B) | Key | Value |
+		+---------------+-----------------+---------------+---------------+-----------------+-...-+--...--+
+
+		CRC = 32bit hash computed over the payload using CRC
+		Key Size = Length of the Key data
+		Tombstone = If this record was deleted and has a value
+		Value Size = Length of the Value data
+		Key = Key data
+		Value = Value data
+		Timestamp = Timestamp of the operation in seconds
+	*/
+
+	CRC       uint32
+	timestamp time.Time
+	tombstone uint8
+	keySize   uint64
+	valueSize uint64
+	key       string
+	value     []byte
+
+	// Dokumentacija trazi timestamp od 16B. Ovdje je pretvoren u 8B jer nisam siguran da ijedna konverzija
+	// time.Time vrijednosti podrzava velicinu od 16B. 8B implementacija bi trebala biti sasvim dovoljna jer
+	// podrzava mjerenje vremena do preciznosti jedne mikrosekunde u narednih ~300`000 godina.
+	// Mogli bismo ovo pretvoriti u 16B podatak tako sto bismo dodali 64 nule ispred ovoga, ali zasto?
 }
 
-func NewMemtableEntry(key, value []byte, tombstone bool, timestamp time.Time) *MemtableEntry {
-	return &MemtableEntry{key, value, timestamp, tombstone}
+func CreateEntry(key string, data []byte, tombstone uint8) *Entry {
+	return &Entry{crc32.ChecksumIEEE(data), time.Now(), tombstone, uint64(len([]byte(key))), uint64(len(data)), key, data}
 }
 
-func EmptyMemtableEntry(key []byte, timestamp time.Time) *MemtableEntry {
-	return &MemtableEntry{
-		Key:       key,
-		Value:     nil,
-		Timestamp: timestamp,
-		Tombstone: true,
-	}
+func (entry Entry) ToByteArray() []byte {
+	byteArray := make([]byte, 0)
+
+	binary.BigEndian.AppendUint32(byteArray, entry.CRC)
+	binary.BigEndian.AppendUint64(byteArray, uint64(time.Time.UnixMicro(entry.timestamp)))
+	byteArray = append(byteArray, entry.tombstone)
+	binary.BigEndian.AppendUint64(byteArray, entry.keySize)
+	binary.BigEndian.AppendUint64(byteArray, entry.valueSize)
+	byteArray = append(byteArray, []byte(entry.key)...)
+	byteArray = append(byteArray, []byte(entry.value)...)
+
+	return byteArray
 }
 
-func SerializeMemtableEntry(entry MemtableEntry) []byte {
-	buf := make([]byte, 0, 1024)
-	var b [binary.MaxVarintLen64]byte
+func (entry *Entry) Size() int64 {
+	return int64(29 + entry.keySize + entry.valueSize)
+}
 
-	n := binary.PutUvarint(b[:], uint64(entry.Timestamp.Unix()))
-	buf = append(buf, b[:n]...)
+func EntryTest() {
+	e1 := CreateEntry("1", []byte{0, 1, 2, 3, 4}, 0)
+	e2 := CreateEntry("02", []byte("abcde"), 1)
+	e3 := CreateEntry("003", []byte("Test string"), 0)
 
+	fmt.Print(len(e1.ToByteArray()), " ", e1.ToByteArray(), "\n")
+	fmt.Print(len(e2.ToByteArray()), " ", e2.ToByteArray(), "\n")
+	fmt.Print(len(e3.ToByteArray()), " ", e3.ToByteArray(), "\n")
+}
+
+// NIJE MOJE ---------------------------------------------------------------------------------------------------------------------------------------------------
+// MOZDA MOZE POMOCI AKO ZATREBA KASNIJE
+/*
+func SerializeEntry(entry WriteAheadLogEntry) ([]byte, int) {
+	// returns the serialized entry and the size of it
+	// first we create all of the parts of the serialized entry, and join them in the end
+	crc := make([]byte, CRC_SIZE)
+	timestamp := make([]byte, TIMESTAMP_SIZE)
+	tombstone := make([]byte, TOMBSTONE_SIZE)
+	keysize := make([]byte, KEY_SIZE_SIZE)
+	valuesize := make([]byte, VALUE_SIZE_SIZE)
+
+	binary.BigEndian.PutUint64(timestamp, uint64(entry.Timestamp.Unix()))
 	if entry.Tombstone {
-		buf = append(buf, 't')
+		tombstone[0] = 1
 	} else {
-		buf = append(buf, 'f')
+		tombstone[0] = 0
 	}
 
-	n = binary.PutUvarint(b[:], uint64(len(entry.Key)))
-	buf = append(buf, b[:n]...)
+	binary.BigEndian.PutUint64(keysize, uint64(len(entry.Key)))
+	binary.BigEndian.PutUint64(valuesize, uint64(len(entry.Value)))
 
-	if !entry.Tombstone {
-		n = binary.PutUvarint(b[:], uint64(len(entry.Value)))
-		buf = append(buf, b[:n]...)
-	}
+	returnArray := append(timestamp, tombstone...)
+	returnArray = append(returnArray, keysize...)
+	returnArray = append(returnArray, valuesize...)
+	returnArray = append(returnArray, entry.Key...)
+	returnArray = append(returnArray, entry.Value...)
 
-	buf = append(buf, entry.Key...)
+	crc = hashfunc.Crc32AsBytes(returnArray)
 
-	if !entry.Tombstone {
-		buf = append(buf, entry.Value...)
-	}
+	returnArray = append(crc, returnArray...)
 
-	crc := hashfunc.Crc32(buf)
-	n = binary.PutUvarint(b[:], uint64(crc))
-	buf = append(b[:n], buf...)
-
-	return buf
+	return returnArray, len(returnArray)
 }
 
-func DeserializeMemtableEntry(buf []byte) (MemtableEntry, int, error) {
-	var decodedEntry MemtableEntry
-	initialLen := len(buf)
+func deserializeEntry(data []byte) (*WriteAheadLogEntry, []byte, error) {
+	reader := bytes.NewReader(data)
 
-	if len(buf) < 4 {
-		return decodedEntry, 0, errors.New("buffer too short for CRC")
+	crc := make([]byte, CRC_SIZE)
+	timestampBytes := make([]byte, TIMESTAMP_SIZE)
+	tombstone := make([]byte, TOMBSTONE_SIZE)
+	keysize := make([]byte, KEY_SIZE_SIZE)
+	valuesize := make([]byte, VALUE_SIZE_SIZE)
+
+	err := binary.Read(reader, binary.BigEndian, &crc)
+	if err != nil {
+		return nil, nil, errors.New("error while reading crc from a wal entry")
+	}
+	err = binary.Read(reader, binary.BigEndian, &timestampBytes)
+	if err != nil {
+		return nil, nil, errors.New("error while reading timestamp from a wal entry")
+	}
+	if _, err = reader.Read(tombstone); err != nil {
+		return nil, nil, err
+	}
+	err = binary.Read(reader, binary.BigEndian, &keysize)
+	if err != nil {
+		return nil, nil, errors.New("error while reading keysize from a wal entry")
+	}
+	err = binary.Read(reader, binary.BigEndian, &valuesize)
+	if err != nil {
+		return nil, nil, errors.New("error while reading valuesize from a wal entry")
 	}
 
-	_, n := binary.Uvarint(buf)
-	buf = buf[n:]
+	timestamp := time.Unix(int64(binary.BigEndian.Uint64(timestampBytes)), 0)
 
-	timestamp, n := binary.Uvarint(buf)
-	if n <= 0 {
-		return decodedEntry, 0, errors.New("buffer too short for timestamp")
-	}
-	decodedEntry.Timestamp = time.Unix(int64(timestamp), 0)
-	buf = buf[n:]
+	key := make([]byte, binary.BigEndian.Uint64(keysize))
+	value := make([]byte, binary.BigEndian.Uint64(valuesize))
 
-	if len(buf) < 1 {
-		return decodedEntry, 0, errors.New("buffer too short for tombstone")
+	if _, err := reader.Read(key); err != nil {
+		return nil, nil, err
 	}
 
-	decodedEntry.Tombstone = buf[0] == 't'
-	buf = buf[1:]
-
-	keyLen, n := binary.Uvarint(buf)
-	if n <= 0 || len(buf[n:]) < int(keyLen) {
-		return decodedEntry, 0, errors.New("buffer too short for key")
-	}
-	buf = buf[n:]
-
-	var valueLen uint64
-	if !decodedEntry.Tombstone {
-		valueLen, n = binary.Uvarint(buf)
-		if n <= 0 || len(buf[n:]) < int(valueLen) {
-			return decodedEntry, 0, errors.New("buffer too short for value size")
-		}
-		buf = buf[n:]
+	if _, err := reader.Read(value); err != nil {
+		return nil, nil, err
 	}
 
-	decodedEntry.Key = buf[:keyLen]
-	buf = buf[keyLen:]
-
-	if !decodedEntry.Tombstone {
-		decodedEntry.Value = buf[:valueLen]
-		buf = buf[valueLen:]
+	entry := &WriteAheadLogEntry{
+		Timestamp: timestamp,
+		Tombstone: tombstone[0] == 1,
+		Key:       key,
+		Value:     value,
 	}
 
-	bytesRead := initialLen - len(buf)
-	return decodedEntry, bytesRead, nil
+	return entry, crc, nil
 }
+*/

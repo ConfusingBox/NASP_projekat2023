@@ -12,7 +12,7 @@ const (
 	TB                    // 1 terabyte
 )
 
-type Config struct {
+type oldConfig struct {
 	BloomFilterFalsePositiveRate float32 `json:"bloom_filter_false_positive_rate"`
 	BloomFilterExpectedElements  int     `json:"bloom_filter_expected_elements"`
 	SkipListDepth                int     `json:"skip_list_depth"`
@@ -35,7 +35,7 @@ type Config struct {
 	SimHashHashSize              int     `json:"sim_hash_hash_size"`
 }
 
-var DefaultConfig = Config{
+var DefaultConfig = oldConfig{
 	BloomFilterFalsePositiveRate: 0.2,
 	BloomFilterExpectedElements:  50000,
 	SkipListDepth:                10,
@@ -56,13 +56,13 @@ var DefaultConfig = Config{
 	SimHashHashSize:              8,
 }
 
-func LoadConfig(filepath string) (*Config, error) {
+func LoadConfig(filepath string) (*oldConfig, error) {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, err
 	}
 
-	var config Config
+	var config oldConfig
 	err = json.Unmarshal(data, &config)
 
 	if err != nil {

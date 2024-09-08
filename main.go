@@ -3,16 +3,9 @@ package main
 import (
 	"NASP_projekat2023/strukture"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
-
-func put() {}
-
-func get() {}
-
-func delete() {}
 
 func probabilisticStructs(config *Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
@@ -55,10 +48,8 @@ func probabilisticStructs(config *Config) {
 }
 
 func main() {
-	config, err := LoadConfigValues("config.json")
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
+	engine := Engine{}
+	engine.LoadStructures()
 
 	for {
 		fmt.Println("Main Menu:")
@@ -76,12 +67,44 @@ func main() {
 		switch strings.ToLower(choice) {
 		case "1":
 			// Put operation
+			var key, value string
+
+			fmt.Print("Enter key: ")
+			fmt.Scan(&key)
+			fmt.Print("Enter value: ")
+			fmt.Scan(&value)
+
+			if engine.Put(key, []byte(value)) {
+				fmt.Print("Put operation successful.")
+			} else {
+				fmt.Print("Put operation failed.")
+			}
 		case "2":
 			// Get operation
+			var key string
+
+			fmt.Print("Enter key: ")
+			fmt.Scan(&key)
+
+			if engine.Get(key) {
+				fmt.Print("Get operation successful.")
+			} else {
+				fmt.Print("Get operation failed.")
+			}
 		case "3":
 			// Delete operation
+			var key string
+
+			fmt.Print("Enter key: ")
+			fmt.Scan(&key)
+
+			if engine.Delete(key) {
+				fmt.Print("Delete operation successful.")
+			} else {
+				fmt.Print("Delete operation failed.")
+			}
 		case "4":
-			probabilisticStructs(config)
+			// probabilisticStructs(config)
 		case "5":
 			// Clear Log
 		case "x":
