@@ -4,6 +4,7 @@ import (
 	"NASP_projekat2023/strukture"
 	"NASP_projekat2023/utils"
 	"fmt"
+	"os"
 )
 
 type Engine struct {
@@ -12,7 +13,6 @@ type Engine struct {
 	WAL         *strukture.WriteAheadLog
 	Cache       *strukture.LRUCache
 	Mempool     *strukture.Mempool
-	BloomFilter *strukture.BloomFilter
 }
 
 func (engine *Engine) LoadStructures() bool {
@@ -31,15 +31,12 @@ func (engine *Engine) LoadStructures() bool {
 	}
 	Cache := strukture.NewLRUCache(Config.CacheSize)
 
-	BloomFilter := strukture.NewBloomFilterWithSize(Config.BloomFilterExpectedElements, Config.BloomFilterFalsePositiveRate)
-
 	*engine = Engine{
 		Config:      Config,
 		WAL:         WAL,
 		TokenBucket: TokenBucket,
 		Cache:       &Cache,
 		Mempool:     Mempool,
-		BloomFilter: BloomFilter,
 	}
 
 	return true
@@ -64,7 +61,6 @@ func (engine *Engine) Put(key string, value []byte) bool {
 		fmt.Println(err.Error())
 		return false
 	}
-	engine.BloomFilter.Insert(key)
 
 	return true
 }
@@ -75,19 +71,25 @@ func (engine *Engine) Get(key string) ([]byte, bool) {
 		return nil, false
 	}
 
-	if !engine.BloomFilter.Lookup(key) {
+	if entry := engine.Mempool.Find(key); entry != nil {
+		return entry.GetValue(), true
+	}
+
+	if value := engine.Cache.Get([]byte(key)); value != nil {
+		return value, true
+	}
+
+	bloomFilter, err := loadBloomFilterFromFile("data/filter_0.bin")
+	if err != nil {
+		fmt.Println("Error loading Bloom Filter:", err)
+		return nil, false
+	}
+
+	if !bloomFilter.Lookup(key) {
 		fmt.Println("Key not found in Bloom Filter")
 		return nil, false
 	}
-	/*
-		if value := engine.Cache.Get(key); value != nil {
-			return value, true
-		}
 
-		if entry := engine.Mempool.Find(key); entry != nil {
-			return entry.GetValue(), true
-		}
-	*/
 	fmt.Println("Key not found")
 	return nil, false
 }
@@ -116,7 +118,33 @@ func (engine *Engine) Delete(key string) bool {
 		engine.Cache.Remove([]byte(key))
 	}
 
-	engine.BloomFilter.Insert(key)
-
 	return true
+}
+
+func loadBloomFilterFromFile(filename string) (*strukture.BloomFilter, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	fileSize := fileInfo.Size()
+	data := make([]byte, fileSize)
+
+	_, err = file.Read(data)
+	if err != nil {
+		return nil, err
+	}
+
+	bloomFilter, err := strukture.DeserializeBloomFilter(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return bloomFilter, nil
 }
