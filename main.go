@@ -2,6 +2,7 @@ package main
 
 import (
 	"NASP_projekat2023/strukture"
+	"NASP_projekat2023/utils"
 	"fmt"
 	"log"
 	"os"
@@ -14,7 +15,7 @@ func get() {}
 
 func delete() {}
 
-func probabilisticStructs(config *Config) {
+func probabilisticStructs(config *utils.Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
 	cms := strukture.NewCountMinSketch(config.MemTableSize, config.SkipListDepth)
 	hll := strukture.NewHyperLogLog(config.HyperLogLogPrecision)
@@ -55,7 +56,7 @@ func probabilisticStructs(config *Config) {
 }
 
 func main() {
-	config, err := LoadConfigValues("config.json")
+	config, err := utils.LoadConfigValues("config.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

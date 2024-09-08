@@ -10,11 +10,11 @@ import (
 )
 
 type HyperLogLog struct {
-	Precision int
+	Precision int64
 	Registers []int
 }
 
-func NewHyperLogLog(precision int) *HyperLogLog {
+func NewHyperLogLog(precision int64) *HyperLogLog {
 	size := 1 << precision
 	return &HyperLogLog{precision, make([]int, size)}
 }
@@ -48,7 +48,7 @@ func DeserializeHLL(data []byte) (*HyperLogLog, error) {
 		registerSlice[i] = int(v)
 	}
 	return &HyperLogLog{
-		Precision: precision,
+		Precision: int64(precision),
 		Registers: registerSlice,
 	}, nil
 
@@ -82,7 +82,7 @@ func (hyperloglog *HyperLogLog) Estimate() float64 {
 	return estimate
 }
 
-func getAlpha(precision int) float64 {
+func getAlpha(precision int64) float64 {
 	const defaultAlpha = 0.7213
 	switch precision {
 	case 4:

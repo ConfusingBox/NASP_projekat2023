@@ -13,26 +13,26 @@ const (
 )
 
 type Config struct {
-	BloomFilterFalsePositiveRate float32 `json:"bloom_filter_false_positive_rate"`
-	BloomFilterExpectedElements  int     `json:"bloom_filter_expected_elements"`
-	SkipListDepth                int     `json:"skip_list_depth"`
-	HyperLogLogPrecision         int     `json:"hyperloglog_precision"`
+	BloomFilterFalsePositiveRate float64 `json:"bloom_filter_false_positive_rate"`
+	BloomFilterExpectedElements  int64   `json:"bloom_filter_expected_elements"`
+	SkipListDepth                int64   `json:"skip_list_depth"`
+	HyperLogLogPrecision         int64   `json:"hyperloglog_precision"`
 	WALDirectory                 string  `json:"wal_directory"`
-	WALBufferSize                int     `json:"wal_buffer_size"`
-	WALSegmentSize               int     `json:"wal_segment_size"`
-	BTreeDegree                  int     `json:"btree_degree"`
-	MemTableThreshold            float32 `json:"mem_table_threshold"`
-	MemTableSize                 int     `json:"mem_table_size"`
+	WALBufferSize                int64   `json:"wal_buffer_size"`
+	WALSegmentSize               int64   `json:"wal_segment_size"`
+	BTreeDegree                  int64   `json:"btree_degree"`
+	MemTableThreshold            float64 `json:"mem_table_threshold"`
+	MemTableSize                 int64   `json:"mem_table_size"`
 	MemTableType                 string  `json:"mem_table_type"`
-	MemPoolSize                  int     `json:"mem_pool_size"`
-	SummaryDensity               int     `json:"summary_density"`
-	IndexDensity                 int     `json:"index_density"`
+	MemPoolSize                  int64   `json:"mem_pool_size"`
+	SummaryDensity               int64   `json:"summary_density"`
+	IndexDensity                 int64   `json:"index_density"`
 	SSTableMultipleFiles         bool    `json:"ss_table_multiple_files"`
 	SSTableDirectory             string  `json:"ss_table_directory"`
-	CacheSize                    int     `json:"cache_size"`
-	TokenBucketCapacity          int     `json:"token_bucket_capacity"`
-	TokenBucketLimitSeconds      int     `json:"token_bucket_limit_seconds"`
-	SimHashHashSize              int     `json:"sim_hash_hash_size"`
+	CacheSize                    int64   `json:"cache_size"`
+	TokenBucketCapacity          int64   `json:"token_bucket_capacity"`
+	TokenBucketLimitSeconds      int64   `json:"token_bucket_limit_seconds"`
+	SimHashHashSize              int64   `json:"sim_hash_hash_size"`
 }
 
 var DefaultConfig = Config{
@@ -56,7 +56,7 @@ var DefaultConfig = Config{
 	SimHashHashSize:              8,
 }
 
-func LoadConfig(filepath string) (*Config, error) {
+func LoadConfigValues(filepath string) (*Config, error) {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, err
