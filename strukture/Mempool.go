@@ -1,10 +1,5 @@
 package strukture
 
-import (
-	"errors"
-	"os"
-)
-
 type Mempool struct {
 	tableCount      int
 	tables          []*Memtable
@@ -12,6 +7,7 @@ type Mempool struct {
 	outputDirectory string
 }
 
+/*
 func NewMempool(numTables, memtableSize, skipListDepth, BTreeDegree int, outputDir, memtableType string) (*Mempool, error) {
 	memtables := make([]*Memtable, numTables)
 	var err error
@@ -81,3 +77,4 @@ func (mp *Mempool) Put(entry *MemtableEntry) error {
 	}
 	return err
 }
+*/
