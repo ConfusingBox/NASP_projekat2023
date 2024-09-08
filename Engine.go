@@ -11,7 +11,7 @@ type Engine struct {
 	TokenBucket *strukture.TokenBucket
 	WAL         *strukture.WriteAheadLog
 	Cache       *strukture.LRUCache
-	MemTable    *strukture.Memtable
+	Mempool     *strukture.Mempool
 	BloomFilter *strukture.BloomFilter
 }
 
@@ -22,7 +22,7 @@ func (engine *Engine) LoadStructures() bool {
 		return false
 	}
 
-	Memtable := strukture.CreateMemtable(Config.MemTableSize, Config.MemTableType, Config.SkipListDepth, Config.BTreeDegree, Config.MemTableThreshold)
+	Mempool := strukture.CreateMempool(Config.MemPoolSize, Config.MemTableSize, Config.MemTableType, Config.SkipListDepth, Config.BTreeDegree, Config.MemTableThreshold)
 	TokenBucket := strukture.NewTokenBucket(int(Config.TokenBucketLimitSeconds), int(Config.TokenBucketCapacity))
 	WAL, err1 := strukture.CreateWriteAheadLog(Config.WALSegmentSize)
 	if err1 != nil {
@@ -38,7 +38,7 @@ func (engine *Engine) LoadStructures() bool {
 		WAL:         WAL,
 		TokenBucket: TokenBucket,
 		Cache:       &Cache,
-		MemTable:    Memtable,
+		Mempool:     Mempool,
 		BloomFilter: BloomFilter,
 	}
 
@@ -59,7 +59,7 @@ func (engine *Engine) Put(key string, value []byte) bool {
 		return false
 	}
 
-	err = engine.MemTable.Insert(entry)
+	err = engine.Mempool.Insert(entry, engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
@@ -84,9 +84,11 @@ func (engine *Engine) Get(key string) ([]byte, bool) {
 		return value, true
 	}
 
-	if entry := engine.MemTable.Get(key); entry != nil {
-		return entry.GetValue(), true
-	}
+	/*
+		if entry := engine.Mempool.Get(key); entry != nil {
+			return entry.GetValue(), true
+		}
+	*/
 
 	fmt.Println("Key not found")
 	return nil, false
@@ -106,7 +108,7 @@ func (engine *Engine) Delete(key string) bool {
 		return false
 	}
 
-	err = engine.MemTable.Insert(entry)
+	err = engine.Mempool.Insert(entry, engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false

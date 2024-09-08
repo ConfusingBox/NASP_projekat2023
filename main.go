@@ -28,7 +28,7 @@ func probabilisticStructs(config *utils.Config) {
 		switch strings.ToLower(choice) {
 		case "1":
 			strukture.BloomFilterMenu(bf)
-			serializedBf := strukture.SerializeBloomFilter(bf)
+			serializedBf := bf.Serialize()
 			fmt.Println(serializedBf)
 		case "2":
 			//strukture.CMSMenu(cms)
