@@ -92,14 +92,14 @@ func (engine *Engine) Get(key string, indexDensity int64) ([]byte, bool) {
 	}
 
 	for i := currentHighestFileIndex; i >= 0; i-- {
-		bloomFilter, err := loadBloomFilterFromFile("data/filter_" + fmt.Sprint(i) + ".bin")
+		bloomFilter, err := loadBloomFilterFromFile("data/filter/filter_" + fmt.Sprint(i) + ".bin")
 		if err != nil {
 			fmt.Println("Error loading Bloom Filter:", err)
 			return nil, false
 		}
 
 		if bloomFilter.Lookup(key) {
-			indexFileOffset, err := findFileOffset("data/summary_"+fmt.Sprint(i)+".bin", key, 0)
+			indexFileOffset, err := findFileOffset("data/summary/summary_"+fmt.Sprint(i)+".bin", key, 0)
 			if err != nil {
 				fmt.Println("Error finding index offset:", err)
 				return nil, false
@@ -108,7 +108,7 @@ func (engine *Engine) Get(key string, indexDensity int64) ([]byte, bool) {
 				continue
 			}
 
-			dataFileOffset, err := findFileOffset("data/index_"+fmt.Sprint(i)+".bin", key, indexFileOffset)
+			dataFileOffset, err := findFileOffset("data/index/index_"+fmt.Sprint(i)+".bin", key, indexFileOffset)
 			if err != nil {
 				fmt.Println("Error finding data offset:", err)
 				return nil, false
@@ -295,7 +295,7 @@ func findFileOffset(filename string, searchKey string, initialOffset int64) (int
 }
 
 func ReadDataFile(fileIndex, dataFileOffset int64, searchKey string) ([]byte, int64, error) {
-	file, err := os.Open("data/data_" + fmt.Sprint(fileIndex) + ".bin")
+	file, err := os.Open("data/data/data_" + fmt.Sprint(fileIndex) + ".bin")
 	if err != nil {
 		return nil, 0, errors.New("Error opening data file")
 	}
