@@ -57,6 +57,10 @@ func (e *Entry) GetValue() []byte {
 	return e.value
 }
 
+func (e *Entry) GetKey() string {
+	return e.key
+}
+
 func CreateEntry(key string, data []byte, tombstone uint8) *Entry {
 	return &Entry{crc32.ChecksumIEEE(data), time.Now(), tombstone, uint64(len([]byte(key))), uint64(len(data)), key, data}
 }
