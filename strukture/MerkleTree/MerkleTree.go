@@ -1,15 +1,18 @@
-package strukture
+package MerkleTree
 
 import (
+	"NASP_projekat2023/strukture"
 	"bytes"
 	"crypto/sha1"
+	"encoding/json"
+	"fmt"
 	"os"
 	"sort"
 )
 
 type MerkleTree struct {
 	root     *Node
-	elements [][]byte
+	elements map[string]strukture.Entry
 	leaves   []*Node
 }
 
@@ -24,11 +27,24 @@ func NewNode(data [20]byte) *Node {
 }
 
 func NewMerkleTree() *MerkleTree {
-	return &MerkleTree{}
+	return &MerkleTree{
+		elements: make(map[string]strukture.Entry),
+	}
 }
 
-func (mr *MerkleTree) AddElement(el []byte) {
-	mr.elements = append(mr.elements, el)
+func (mr *MerkleTree) AddElement(key string, entry strukture.Entry) {
+	mr.elements[key] = entry
+}
+
+func (mr *MerkleTree) CreateTreeWithElems() {
+	keys := make([]string, 0, len(mr.elements))
+	for k := range mr.elements {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	mr.buildLeaves(keys)
+	mr.buildInternalNodes()
 }
 
 func (mr *MerkleTree) CreateTree(filePath string) {
@@ -37,26 +53,30 @@ func (mr *MerkleTree) CreateTree(filePath string) {
 		panic(err)
 	}
 
-	// Assume each element in the file is a separate entry
-	mr.elements = bytes.Split(content, []byte("|"))
+	var fileEntries map[string]strukture.Entry
+	err = json.Unmarshal(content, &fileEntries)
+	if err != nil {
+		panic(err)
+	}
 
-	sort.Slice(mr.elements, func(i, j int) bool {
-		return bytes.Compare(mr.elements[i], mr.elements[j]) < 0
-	})
+	mr.elements = fileEntries
 
-	mr.buildLeaves()
+	keys := make([]string, 0, len(mr.elements))
+	for k := range mr.elements {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	mr.buildLeaves(keys)
 	mr.buildInternalNodes()
 }
 
-func (mr *MerkleTree) CreateTreeWithElems() {
-	mr.buildLeaves()
-	mr.buildInternalNodes()
-}
-
-func (mr *MerkleTree) buildLeaves() {
-	for _, el := range mr.elements {
-		key := sha1.Sum(el)
-		newNode := NewNode(key)
+func (mr *MerkleTree) buildLeaves(keys []string) {
+	for _, key := range keys {
+		entry := mr.elements[key]
+		data := append([]byte(key), entry.ToByteArray()...)
+		keyValueHash := sha1.Sum(data)
+		newNode := NewNode(keyValueHash)
 		mr.leaves = append(mr.leaves, newNode)
 	}
 	mr.padLeaves()
@@ -64,8 +84,8 @@ func (mr *MerkleTree) buildLeaves() {
 
 func (mr *MerkleTree) padLeaves() {
 	for len(mr.leaves)%2 != 0 {
-		key := sha1.Sum([]byte{})
-		newNode := NewNode(key)
+		emptyKeyHash := sha1.Sum([]byte{})
+		newNode := NewNode(emptyKeyHash)
 		mr.leaves = append(mr.leaves, newNode)
 	}
 }
@@ -85,94 +105,56 @@ func (mr *MerkleTree) buildInternalNodes() {
 	mr.root = queue[0]
 }
 
-func (mr *MerkleTree) VerifyTree(newElements [][]byte) ([]int, error) {
+func (mr *MerkleTree) VerifyTree(newElements map[string]strukture.Entry) ([]string, error) {
 	newTree := NewMerkleTree()
-	newTree.elements = newElements
+	for key, entry := range newElements {
+		newTree.AddElement(key, entry)
+	}
 	newTree.CreateTreeWithElems()
 
-	if !bytes.Equal(mr.root.data[:], newTree.root.data[:]) {
-		return compareNodes(mr.root, newTree.root, 0), nil
+	if mr.root == nil || newTree.root == nil {
+		return nil, fmt.Errorf("one or both trees are empty")
 	}
 
-	return []int{}, nil
+	if !bytes.Equal(mr.root.data[:], newTree.root.data[:]) {
+		return compareNodes(mr.root, newTree.root), nil
+	}
+	return []string{}, nil
 }
 
-func compareNodes(oldNode, newNode *Node, index int) []int {
-	var changedIndices []int
+func compareNodes(oldNode, newNode *Node) []string {
+	var changes []string
 
 	if !bytes.Equal(oldNode.data[:], newNode.data[:]) {
 		if oldNode.left == nil && oldNode.right == nil {
-			changedIndices = append(changedIndices, index)
+			changes = append(changes, "Leaf nodes differ")
 		} else {
-			changedIndices = append(changedIndices, compareNodes(oldNode.left, newNode.left, index*2)...)
-			changedIndices = append(changedIndices, compareNodes(oldNode.right, newNode.right, index*2+1)...)
+			changes = append(changes, compareNodes(oldNode.left, newNode.left)...)
+			changes = append(changes, compareNodes(oldNode.right, newNode.right)...)
 		}
 	}
-
-	return changedIndices
+	return changes
 }
 
-func (mr *MerkleTree) SerializeTree() []byte {
-	var result []byte
-	queue := []*Node{mr.root}
-	for len(queue) > 0 {
-		el := queue[0]
-		queue = queue[1:]
-
-		// Manually append each byte from el.data1 to result
-		for i := 0; i < len(el.data); i++ {
-			result = append(result, el.data[i])
-		}
-
-		// Append separator '|' if there are more nodes
-		if el.left != nil {
-			queue = append(queue, el.left)
-			result = append(result, '|')
-		}
-		if el.right != nil {
-			queue = append(queue, el.right)
-			result = append(result, '|')
-		}
+func (mr *MerkleTree) SerializeTree() ([]byte, error) {
+	treeData := struct {
+		Elements map[string]strukture.Entry `json:"elements"`
+		Root     *Node                      `json:"root"`
+	}{
+		Elements: mr.elements,
+		Root:     mr.root,
 	}
-
-	// Remove the trailing '|'
-	if len(result) > 0 {
-		result = result[:len(result)-1]
-	}
-	return result
+	return json.Marshal(treeData)
 }
 
 func ReconstructTree(data []byte) *MerkleTree {
-	keys := bytes.Split(data, []byte("|"))
-	keys = keys[:len(keys)-1]
-
-	newMerkleTree := NewMerkleTree()
-
-	nodes := make([]Node, len(keys))
-
-	for i := 0; i < len(keys); i++ {
-		copy(nodes[i].data[:], keys[i])
+	var treeData struct {
+		Elements map[string]strukture.Entry `json:"elements"`
+		Root     *Node                      `json:"root"`
 	}
-
-	if len(nodes) > 0 {
-		newMerkleTree.root = &nodes[0]
-		queue := []*Node{newMerkleTree.root}
-		i := 1
-
-		for len(queue) > 0 {
-			el := queue[0]
-			queue = queue[1:]
-			if i < len(nodes) {
-				el.left = &nodes[i]
-				i++
-				if i < len(nodes) {
-					el.right = &nodes[i]
-					i++
-					queue = append(queue, el.left, el.right)
-				}
-			}
-		}
+	err := json.Unmarshal(data, &treeData)
+	if err != nil {
+		return nil
 	}
-
-	return newMerkleTree
+	return &MerkleTree{root: treeData.Root, elements: treeData.Elements}
 }

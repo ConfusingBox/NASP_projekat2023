@@ -1,9 +1,5 @@
 package strukture
 
-import (
-	"errors"
-)
-
 type Mempool struct {
 	memtableCount       int64
 	activeMemtableIndex int64
@@ -22,18 +18,18 @@ func CreateMempool(memtableCount, size, structureUsed, skipListDepth, bTreeDegre
 }
 
 func (mempool *Mempool) Insert(entry *Entry) error {
-	success := mempool.memtables[mempool.activeMemtableIndex].Insert(entry)
-	if !success {
-		return errors.New("Mempool insert failed.")
-	}
+	//	success := mempool.memtables[mempool.activeMemtableIndex].Insert(entry)
+	//if !success {
+	//	return errors.New("Mempool insert failed.")
+	//}
 
-	if mempool.memtables[mempool.activeMemtableIndex].IsFull() {
-		if mempool.activeMemtableIndex == mempool.memtableCount {
-			mempool.Flush()
-		} else {
-			mempool.activeMemtableIndex++
-		}
-	}
+	//if mempool.memtables[mempool.activeMemtableIndex].IsFull() {
+	//if mempool.activeMemtableIndex == mempool.memtableCount {
+	//	mempool.Flush()
+	//} else {
+	//	mempool.activeMemtableIndex++
+	//	}
+	//}
 
 	return nil
 }
@@ -41,11 +37,11 @@ func (mempool *Mempool) Insert(entry *Entry) error {
 func (mempool *Mempool) Flush() error {
 	var i int64
 	for i = 0; i < mempool.memtableCount; i++ {
-		mempool.memtables[i].Flush()
+		//mempool.memtables[i].Flush()
 	}
 
 	for i = 0; i < mempool.memtableCount; i++ {
-		mempool.memtables[i].Empty()
+		//mempool.memtables[i].Empty()
 	}
 
 	mempool.activeMemtableIndex = 0

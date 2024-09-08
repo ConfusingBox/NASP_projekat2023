@@ -51,6 +51,7 @@ func probabilisticStructs(config *utils.Config) {
 func main() {
 	engine := Engine{}
 	engine.LoadStructures()
+	//strukture.WriteAheadLogTest()
 
 	for {
 		fmt.Println("Main Menu:")
