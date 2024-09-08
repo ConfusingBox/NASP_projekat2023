@@ -23,11 +23,7 @@ func (engine *Engine) LoadStructures() bool {
 		fmt.Println(err.Error())
 		return false
 	}
-	Memtable, err2 := strukture.NewMemtable(int(Config.MemTableSize), int(Config.SkipListDepth), int(Config.BTreeDegree), Config.MemTableType)
-	if err2 != nil {
-		fmt.Println(err2.Error())
-		return false
-	}
+	Memtable := strukture.CreateMemtable(Config.MemTableSize, Config.MemTableType, Config.SkipListDepth, Config.BTreeDegree, Config.MemTableThreshold)
 
 	TokenBucket := strukture.NewTokenBucket(int(Config.TokenBucketLimitSeconds), int(Config.TokenBucketCapacity))
 	WAL, err1 := strukture.CreateWriteAheadLog(Config.WALSegmentSize)
@@ -43,21 +39,17 @@ func (engine *Engine) LoadStructures() bool {
 }
 
 func (engine *Engine) Put(key string, value []byte) bool {
-	/*
-		1.1. Upisi u write ahead log
-		1.2. Ako je uspjesno idi dalje
-		2. Upisi u memtable
-	*/
-
 	entry := strukture.CreateEntry(key, value, 0)
 	err := engine.WAL.Log(entry)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
 	}
-	// if nema greske
-
-	//engine.MemTable.Insert(entry)
+	err = engine.MemTable.Insert(entry)
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
 
 	return true
 }
@@ -67,5 +59,7 @@ func (engine *Engine) Get(key string) bool {
 }
 
 func (engine *Engine) Delete(key string) bool {
+	// isto kao put ali je tombstone true?
+
 	return true
 }

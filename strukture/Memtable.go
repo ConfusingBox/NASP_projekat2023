@@ -17,91 +17,107 @@ import (
 	"time"
 )
 
+const (
+	HASH_MAP  = 1
+	SKIP_LIST = 2
+	B_TREE    = 3
+)
+
 type Memtable struct {
-	size        int
-	currentSize int
+	size          int64
+	currentSize   int64
+	threshold     float64
+	structureUsed int64
 
-	dataType     string
-	dataHashMap  map[string]MemtableEntry
-	dataSkipList *SkipList
-	dataBTree    *BTree
+	hashMap  map[string]Entry
+	skipList *SkipList
+	bTree    *BTree
 }
 
-func NewMemtable(MemTableSize, SkipListDepth, BTreeDegree int, MemTableType string) (*Memtable, error) {
-
-	return &Memtable{
-		MemTableSize,
-		0,
-		MemTableType,
-		make(map[string]MemtableEntry),
-		NewSkipList(SkipListDepth),
-		NewBTree(BTreeDegree),
-	}, nil
+// Dodati ispravne parametre u konstruktore SkipList i BTree
+func CreateMemtable(size, structureUsed, skipListDepth, bTreeDegree int64, threshold float64) *Memtable {
+	return &Memtable{size, 0, threshold, structureUsed, map[string]Entry{}, CreateSkipList(skipListDepth), CreateBTree(bTreeDegree)}
 }
 
-func (mt *Memtable) Insert(entry *MemtableEntry) error {
+func (memtable *Memtable) Insert(entry *Entry) error {
+	success := false
 
-	if mt.dataType == "skip_list" {
-		err := mt.InsertSkipList(entry)
-		if err != nil {
-			return err
+	if memtable.structureUsed == HASH_MAP {
+		_, ok := memtable.hashMap[entry.key]
+		if !ok {
+			memtable.currentSize++
 		}
 
-	} else if mt.dataType == "b_tree" {
-		err := mt.InsertBTree(entry)
-		if err != nil {
-			return err
+		memtable.hashMap[entry.key] = *entry
+		success = true
+	} else if memtable.structureUsed == SKIP_LIST {
+		ok := memtable.skipList.Get(entry.key)
+		if ok != nil {
+			memtable.skipList.Delete(entry.key)
+			memtable.currentSize++
 		}
 
-	} else if mt.dataType == "hash_map" {
-		err := mt.InsertHashMap(entry)
-		if err != nil {
-			return err
+		success = memtable.skipList.Insert(*entry) // Napravi da bool return value zaista radi nesto, a ne samo return true na kraju
+	} else if memtable.structureUsed == B_TREE {
+		_, ok := memtable.bTree.Search(entry.key)
+		if !ok {
+			memtable.currentSize++
+			memtable.bTree.Delete(entry.key)
 		}
 
-	} else {
-		return errors.New("Los naziv strukture kod Memtable.Insert().")
+		success, _ = memtable.bTree.Insert(*entry) // Napravi da bool return value zaista radi nesto, a ne samo return true na kraju
+	}
+
+	if success && float64(memtable.currentSize*100) >= float64(memtable.size)*memtable.threshold {
+		memtable.currentSize = 0
+		memtable.Flush()
 	}
 
 	return nil
 }
 
-func (mt *Memtable) InsertSkipList(entry *MemtableEntry) error {
-	exist := mt.dataSkipList.Search(entry.Key)
-
-	if exist == nil {
-		mt.dataSkipList.Insert(*entry)
-		mt.currentSize += 1
-
-		return nil
+func (memtable Memtable) Get(key string) *Entry {
+	if memtable.structureUsed == HASH_MAP {
+		entry, ok := memtable.hashMap[key]
+		if ok {
+			return &entry
+		}
+	} else if memtable.structureUsed == SKIP_LIST {
+		entry := memtable.skipList.Get(key)
+		if entry != nil {
+			return entry
+		}
+	} else if memtable.structureUsed == B_TREE {
+		entry, ok := memtable.bTree.Search(key)
+		if ok {
+			return entry
+		}
 	}
-	return errors.New("Same key already here lol")
-}
-
-func (mt *Memtable) InsertBTree(entry *MemtableEntry) error {
-	err := mt.dataBTree.Insert(*entry)
-
-	if err != nil {
-		return err
-	}
-
-	mt.currentSize += 1
 	return nil
 }
 
-func (mt *Memtable) InsertHashMap(entry *MemtableEntry) error {
-	_, exist := mt.dataHashMap[string(entry.Key)]
+func (memtable *Memtable) Delete(key string) error {
+	if memtable.structureUsed == HASH_MAP {
+		entry, ok := memtable.hashMap[key]
+		if ok {
+			return &entry
+		}
 
-	if exist {
-		return errors.New("Same key already here lol")
+		delete(memtable.hashMap, key)
+
+	} else if memtable.structureUsed == SKIP_LIST {
+		entry := memtable.skipList.Get(key)
+		if entry != nil {
+			return entry
+		}
+	} else if memtable.structureUsed == B_TREE {
+		entry, ok := memtable.bTree.Search(key)
+		if ok {
+			return entry
+		}
 	}
-
-	mt.dataHashMap[string(entry.Key)] = *entry
-	mt.currentSize += 1
 	return nil
-}
 
-func (mt *Memtable) Delete(key []byte) error {
 	if mt.dataType == "skip_list" {
 		return mt.DeleteSkipList(key)
 	}
