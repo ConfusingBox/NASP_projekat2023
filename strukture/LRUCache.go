@@ -7,7 +7,7 @@ import (
 
 // LRUCache represents a Least Recently Used (LRU) cache.
 type LRUCache struct {
-	capacity int                      // The maximum number of elements the cache can hold.
+	capacity int64                    // The maximum number of elements the cache can hold.
 	cache    map[string]*list.Element // A map for O(1) access to cache items.
 	pages    *list.List               // A list to track the order of elements for eviction policy.
 }
@@ -19,7 +19,7 @@ type Page struct {
 }
 
 // NewLRUCache creates a new LRUCache with the given capacity.
-func NewLRUCache(capacity int) LRUCache {
+func NewLRUCache(capacity int64) LRUCache {
 	return LRUCache{
 		capacity: capacity,
 		cache:    make(map[string]*list.Element),
@@ -45,7 +45,7 @@ func (l *LRUCache) Put(key []byte, value []byte) {
 		l.pages.MoveToFront(element) // Move updated element to the front as it is the most recently used.
 		element.Value.(*Page).value = value
 	} else {
-		if l.pages.Len() >= l.capacity {
+		if int64(l.pages.Len()) >= l.capacity {
 			// Remove the least recently used element from the cache.
 			delete(l.cache, string(l.pages.Back().Value.(*Page).key))
 			l.pages.Remove(l.pages.Back())
