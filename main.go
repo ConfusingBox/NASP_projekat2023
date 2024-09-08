@@ -107,7 +107,7 @@ func main() {
 			fmt.Print("Enter key: ")
 			fmt.Scan(&key)
 
-			value, ok := engine.Get(key)
+			value, ok := engine.Get(key, engine.Config.IndexDensity)
 			if ok {
 				fmt.Printf("Get operation successful. Value: %s\n", string(value))
 			} else {
