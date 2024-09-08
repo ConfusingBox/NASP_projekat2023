@@ -277,7 +277,7 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 	for key := range indexData {
 		sortedIndexKeys = append(sortedIndexKeys, key)
 	}
-	sort.Strings(sortedIndexKeys)
+	//sort.Strings(sortedIndexKeys)
 
 	for i, key := range sortedIndexKeys {
 		if int64(i)%summaryDensity == 0 {
