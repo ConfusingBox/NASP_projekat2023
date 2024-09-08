@@ -2,39 +2,58 @@ package strukture
 
 import (
 	"errors"
-	"os"
 )
 
 type Mempool struct {
-	tableCount      int
-	tables          []*Memtable
-	activeTableIdx  int
-	outputDirectory string
+	memtableCount       int64
+	activeMemtableIndex int64
+	memtables           []*Memtable
 }
 
-func NewMempool(numTables, memtableSize, skipListDepth, BTreeDegree int, outputDir, memtableType string) (*Mempool, error) {
-	memtables := make([]*Memtable, numTables)
-	var err error
-	for i := 0; i < numTables; i++ {
-		memtables[i], err = NewMemtable(memtableSize, skipListDepth, BTreeDegree, memtableType)
+func CreateMempool(memtableCount, size, structureUsed, skipListDepth, bTreeDegree int64, threshold float64) *Mempool {
+	memtables := make([]*Memtable, memtableCount)
+
+	var i int64
+	for i = 0; i < memtableCount; i++ {
+		memtables[i] = CreateMemtable(size, structureUsed, skipListDepth, bTreeDegree, threshold)
 	}
 
-	fileInfo, err := os.Stat(outputDir)
-	if err != nil {
-		return nil, err
-	}
-	if !fileInfo.IsDir() {
-		return nil, errors.New("provided mempool filepath isnt an directory")
-	}
-
-	return &Mempool{
-		tableCount:      numTables,
-		tables:          memtables,
-		activeTableIdx:  0,
-		outputDirectory: outputDir,
-	}, err
+	return &Mempool{memtableCount, 0, memtables}
 }
 
+func (mempool *Mempool) Insert(entry *Entry) error {
+	success := mempool.memtables[mempool.activeMemtableIndex].Insert(entry)
+	if !success {
+		return errors.New("Mempool insert failed.")
+	}
+
+	if mempool.memtables[mempool.activeMemtableIndex].IsFull() {
+		if mempool.activeMemtableIndex == mempool.memtableCount {
+			mempool.Flush()
+		} else {
+			mempool.activeMemtableIndex++
+		}
+	}
+
+	return nil
+}
+
+func (mempool *Mempool) Flush() error {
+	var i int64
+	for i = 0; i < mempool.memtableCount; i++ {
+		mempool.memtables[i].Flush()
+	}
+
+	for i = 0; i < mempool.memtableCount; i++ {
+		mempool.memtables[i].Empty()
+	}
+
+	mempool.activeMemtableIndex = 0
+
+	return nil
+}
+
+/*
 func (mp *Mempool) Exists(key []byte) (bool, int) {
 	for i := 0; i < mp.tableCount; i++ {
 		tableIdx := (mp.activeTableIdx - i + mp.tableCount) % mp.tableCount // the addition makes sure we dont get negative numbers
@@ -45,6 +64,7 @@ func (mp *Mempool) Exists(key []byte) (bool, int) {
 	return false, -1
 }
 
+/*
 func (mp *Mempool) IsFull() bool {
 	for i := 0; i < mp.tableCount; i++ {
 		if !mp.tables[i].IsFull() {
@@ -81,3 +101,4 @@ func (mp *Mempool) Put(entry *MemtableEntry) error {
 	}
 	return err
 }
+*/
