@@ -167,7 +167,7 @@ func (mt *Memtable) DeleteHashMap(key []byte) error {
 func (mt *Memtable) Exists(key []byte) bool {
 	switch mt.dataType {
 	case "skip_list":
-		if mt.dataSkipList.Search(key) == nil {
+		if mt.dataSkipList.Get(key) == nil {
 			return false
 		}
 	case "b_tree":
@@ -201,7 +201,7 @@ func (mt *Memtable) Get(key []byte) (*MemtableEntry, error) {
 }
 
 func (mt *Memtable) GetSkipList(key []byte) (*MemtableEntry, error) {
-	entry := mt.dataSkipList.Search(key)
+	entry := mt.dataSkipList.Get(key)
 
 	if entry == nil {
 		return nil, errors.New("Zapis ne postoji.")

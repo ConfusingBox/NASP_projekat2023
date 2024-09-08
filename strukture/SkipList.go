@@ -58,7 +58,7 @@ func (s *SkipList) Insert(entry Entry) bool {
 
 // Search searches for a key in the SkipList.
 // It returns the node containing the key if it exists, otherwise it returns nil.
-func (s *SkipList) Search(key string) *Entry {
+func (s *SkipList) Get(key string) *Entry {
 	for node := s.head; node != nil; node = node.down {
 		for node.right != nil && bytes.Compare([]byte(node.right.key), []byte(key)) <= 0 {
 			node = node.right
