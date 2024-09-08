@@ -3,30 +3,33 @@ package main
 import (
 	"NASP_projekat2023/strukture"
 	"NASP_projekat2023/utils"
+	"bufio"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
 
-func generateUniqueEntries(count int) map[string][]byte {
-	entries := make(map[string][]byte)
-	for i := 0; i < count; i++ {
-		key := fmt.Sprintf("key_%d", i)
-		value := fmt.Sprintf("value_%d", i)
-		entries[key] = []byte(value)
-	}
-	return entries
-}
-func putManyEntries(engine *Engine, count int) {
-	entries := generateUniqueEntries(count)
-	for key, value := range entries {
-		if engine.Put(key, value) {
-			fmt.Printf("Put operation successful for key: %s\n", key)
-		} else {
-			fmt.Printf("Put operation failed for key: %s\n", key)
-		}
-	}
-}
+// func generateUniqueEntries(count int) map[string][]byte {
+// 	entries := make(map[string][]byte)
+// 	for i := 0; i < count; i++ {
+// 		key := fmt.Sprintf("key_%d", i)
+// 		value := fmt.Sprintf("value_%d", i)
+// 		entries[key] = []byte(value)
+// 	}
+// 	return entries
+// }
+// func putManyEntries(engine *Engine, count int) {
+// 	entries := generateUniqueEntries(count)
+// 	for key, value := range entries {
+// 		if engine.Put(key, value) {
+// 			fmt.Printf("Put operation successful for key: %s\n", key)
+// 		} else {
+// 			fmt.Printf("Put operation failed for key: %s\n", key)
+// 		}
+// 	}
+// }
 
 func probabilisticStructs(config *utils.Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
@@ -72,6 +75,10 @@ func main() {
 	engine.LoadStructures()
 	//strukture.WriteAheadLogTest()
 
+	err := processWALFile(engine.Mempool, "data/wal/wal_0.bin", engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
+	if err != nil {
+		fmt.Printf("Error processing WAL file: %v\n", err)
+	}
 	for {
 		fmt.Println("Main Menu:")
 		fmt.Println("1. Put")
@@ -126,10 +133,7 @@ func main() {
 				fmt.Print("Delete operation failed.")
 			}
 		case "4":
-			putManyEntries(&engine, 4500)
-			// probabilisticStructs(config)
-
-			putManyEntries(&engine, 5000)
+			probabilisticStructs(engine.Config)
 
 		case "5":
 			// Clear Log
@@ -140,4 +144,82 @@ func main() {
 			fmt.Println("Pogrešan izbor. Pokušajte opet.")
 		}
 	}
+}
+
+func processWALFile(mempool *strukture.Mempool, filePath string, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree int64, bloomFilterFalsePositiveRate float64) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	br := bufio.NewReader(file)
+
+	for {
+		entry, err := readEntryFromWAL(br)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if err := mempool.Insert(entry, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree, bloomFilterFalsePositiveRate); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func readEntryFromWAL(br *bufio.Reader) (*strukture.Entry, error) {
+	crcBytes := make([]byte, 4)
+	if _, err := io.ReadFull(br, crcBytes); err != nil {
+		return nil, err
+	}
+
+	timestampBytes := make([]byte, 8)
+	if _, err := io.ReadFull(br, timestampBytes); err != nil {
+		return nil, err
+	}
+
+	tombstoneByte := make([]byte, 1)
+	if _, err := io.ReadFull(br, tombstoneByte); err != nil {
+		return nil, err
+	}
+	tombstone := tombstoneByte[0]
+
+	keySizeBytes := make([]byte, 8)
+	if _, err := io.ReadFull(br, keySizeBytes); err != nil {
+		return nil, err
+	}
+	keySize := binary.BigEndian.Uint64(keySizeBytes)
+
+	fmt.Printf("Read key size: %d\n", keySize)
+
+	if keySize > 1<<20 { // Example limit
+		return nil, fmt.Errorf("key size too large: %d", keySize)
+	}
+	keyBytes := make([]byte, keySize)
+	if _, err := io.ReadFull(br, keyBytes); err != nil {
+		return nil, err
+	}
+	key := string(keyBytes)
+
+	valueSizeBytes := make([]byte, 8)
+	if _, err := io.ReadFull(br, valueSizeBytes); err != nil {
+		return nil, err
+	}
+	valueSize := binary.BigEndian.Uint64(valueSizeBytes)
+
+	if valueSize > 1<<20 { // Example limit
+		return nil, fmt.Errorf("value size too large: %d", valueSize)
+	}
+	valueBytes := make([]byte, valueSize)
+	if _, err := io.ReadFull(br, valueBytes); err != nil {
+		return nil, err
+	}
+	value := valueBytes
+
+	entry := strukture.CreateEntry(key, value, tombstone)
+	fmt.Println(entry)
+	return entry, nil
 }
