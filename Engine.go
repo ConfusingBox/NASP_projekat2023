@@ -64,6 +64,7 @@ func (engine *Engine) Put(key string, value []byte) bool {
 		fmt.Println(err.Error())
 		return false
 	}
+	engine.BloomFilter.Insert(key)
 
 	return true
 }

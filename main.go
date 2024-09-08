@@ -52,7 +52,6 @@ func probabilisticStructs(config *utils.Config) {
 func main() {
 	engine := Engine{}
 	engine.LoadStructures()
-	fmt.Println("AAAAA")
 	for {
 		fmt.Println("Main Menu:")
 		fmt.Println("1. Put")

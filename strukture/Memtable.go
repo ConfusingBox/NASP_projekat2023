@@ -62,16 +62,26 @@ func (memtable *Memtable) Insert(entry *Entry) error {
 func (memtable Memtable) Get(key string) *Entry {
 	if memtable.structureUsed == HASH_MAP {
 		entry, ok := memtable.hashMap[key]
+		if entry.tombstone == 1 {
+			return nil
+		}
 		if ok {
 			return &entry
 		}
 	} else if memtable.structureUsed == SKIP_LIST {
 		entry := memtable.skipList.Get(key)
+		if entry.tombstone == 1 {
+			return nil
+		}
 		if entry != nil {
 			return entry
 		}
 	} else if memtable.structureUsed == B_TREE {
 		entry, ok := memtable.bTree.Search(key)
+		if entry.tombstone == 1 {
+			return nil
+		}
+
 		if ok {
 			return entry
 		}
