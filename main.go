@@ -160,7 +160,6 @@ func processWALFile(mempool *strukture.Mempool, bloomFilterExpectedElements, ind
 		if err != nil {
 			continue
 		}
-		defer file.Close()
 
 		br := bufio.NewReader(file)
 
@@ -176,6 +175,9 @@ func processWALFile(mempool *strukture.Mempool, bloomFilterExpectedElements, ind
 				return err
 			}
 		}
+
+		file.Close()
+		os.Remove("data/wal/wal_" + fmt.Sprint(i) + ".bin")
 	}
 
 	return nil
