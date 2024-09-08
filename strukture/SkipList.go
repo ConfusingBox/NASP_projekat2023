@@ -88,10 +88,7 @@ func (s *SkipList) Delete(key string) bool {
 		}
 	}
 	// Naredne 4 linije koda su ekvivalentne sa "return found" btw XD
-	if !found {
-		return false
-	}
-	return true
+	return found
 }
 
 // Print prints the keys and values of the SkipList.
