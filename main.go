@@ -2,14 +2,15 @@ package main
 
 import (
 	"NASP_projekat2023/strukture"
+	"NASP_projekat2023/utils"
 	"fmt"
 	"os"
 	"strings"
 )
 
-func probabilisticStructs(config *Config) {
+func probabilisticStructs(config *utils.Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
-	cms := strukture.NewCountMinSketch(config.MemTableSize, config.SkipListDepth)
+	//cms := strukture.NewCountMinSketch(config.MemTableSize, config.SkipListDepth)
 	hll := strukture.NewHyperLogLog(config.HyperLogLogPrecision)
 
 	for {
@@ -30,9 +31,9 @@ func probabilisticStructs(config *Config) {
 			serializedBf := strukture.SerializeBloomFilter(bf)
 			fmt.Println(serializedBf)
 		case "2":
-			strukture.CMSMenu(cms)
-			serializedCMS := cms.SerializeCMS()
-			fmt.Println(serializedCMS)
+			//strukture.CMSMenu(cms)
+			//serializedCMS := cms.SerializeCMS()
+			//fmt.Println(serializedCMS)
 		case "3":
 			strukture.HLLMenu(hll)
 			serializedHLL := hll.SerializeHLL()

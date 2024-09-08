@@ -46,7 +46,7 @@ func hash4(s string, arrSize int) int {
 	return int(hasher.Sum64()) % arrSize
 }
 
-func StringBinaryHash(str string, hashLength int) string {
+func StringBinaryHash(str string, hashLength int64) string {
 	sum := 0
 
 	for i, char := range str {
@@ -59,7 +59,7 @@ func StringBinaryHash(str string, hashLength int) string {
 	sum %= int(math.Pow(2, float64(hashLength))) - 1
 	hash := fmt.Sprintf("%b", sum)
 
-	for len(hash) != hashLength {
+	for len(hash) != int(hashLength) {
 		hash = "0" + hash
 	}
 

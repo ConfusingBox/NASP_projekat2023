@@ -382,7 +382,7 @@ func openFolder(folderPath string) error {
 // Osim toga, trebalo bi da je Flush zavrsen do kraja, sto ukljucuje tacke, podtacke, dodatne zahtjeve...
 func (mt *Memtable) Flush(indexSparsity, summarySparsity, lsmLevel, bloomFilterExpectedElements int, bloomFilterFalsePositiveRate float64, multipleFiles bool) error {
 	sortedKeys := mt.GetSortedEntries()
-	bf := NewBloomFilterWithSize(bloomFilterExpectedElements, bloomFilterFalsePositiveRate)
+	bf := NewBloomFilterWithSize(int64(bloomFilterExpectedElements), bloomFilterFalsePositiveRate)
 	mtree := MerkleTree.NewMerkleTree()
 	tableIndex := make(map[string]uint64)
 	summaryIndex := make(map[string]uint64)

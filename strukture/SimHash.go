@@ -13,12 +13,12 @@ import (
 
 type SimHash struct {
 	data        string
-	hashLength  int
+	hashLength  int64
 	fingerprint []int
 }
 
 func NewSimHash(data string) (*SimHash, error) {
-	config, err := config.LoadConfig("config.json")
+	config, err := config.LoadConfigValues("config.json")
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (sh *SimHash) calculateFingerprint() {
 		word = regexp.MustCompile("[^a-zA-Z0-9 ]+").ReplaceAllString(word, "")
 		// fmt.Print(word, hashLength)
 		hash := hashfunc.StringBinaryHash(word, hashLength)
-		for i := 0; i < hashLength; i++ {
+		for i := int64(0); i < hashLength; i++ {
 			if int(hash[i]) == 48 {
 				fingerprint[i]--
 			} else {
@@ -55,7 +55,7 @@ func (sh *SimHash) calculateFingerprint() {
 		}
 		// fmt.Println(word, hash)
 	}
-	for i := 0; i < hashLength; i++ {
+	for i := int64(0); i < hashLength; i++ {
 		if fingerprint[i] > 0 {
 			fingerprint[i] = 1
 		} else {
@@ -135,7 +135,7 @@ func deserializeSimHash(data []byte) (*SimHash, error) {
 	if err := binary.Read(reader, binary.BigEndian, &hashLength); err != nil {
 		return nil, err
 	}
-	sh.hashLength = int(hashLength)
+	sh.hashLength = int64(hashLength)
 
 	if err := binary.Read(reader, binary.BigEndian, &fingerprintLength); err != nil {
 		return nil, err
