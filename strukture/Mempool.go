@@ -53,6 +53,11 @@ func (mempool *Mempool) Flush() error {
 	return nil
 }
 
+// STEFANE URADI OVO
+func (mp *Mempool) Find(key []byte) *Entry {
+	return nil
+}
+
 /*
 func (mp *Mempool) Exists(key []byte) (bool, int) {
 	for i := 0; i < mp.tableCount; i++ {
@@ -64,7 +69,7 @@ func (mp *Mempool) Exists(key []byte) (bool, int) {
 	return false, -1
 }
 
-/*
+
 func (mp *Mempool) IsFull() bool {
 	for i := 0; i < mp.tableCount; i++ {
 		if !mp.tables[i].IsFull() {

@@ -11,7 +11,7 @@ type Engine struct {
 	TokenBucket *strukture.TokenBucket
 	WAL         *strukture.WriteAheadLog
 	Cache       *strukture.LRUCache
-	MemTable    *strukture.Memtable
+	Mempool     *strukture.Mempool
 	BloomFilter *strukture.BloomFilter
 }
 
@@ -22,7 +22,7 @@ func (engine *Engine) LoadStructures() bool {
 		return false
 	}
 
-	Memtable := strukture.CreateMemtable(Config.MemTableSize, Config.MemTableType, Config.SkipListDepth, Config.BTreeDegree, Config.MemTableThreshold)
+	Mempool := strukture.CreateMempool(Config.MemPoolSize, Config.MemTableSize, Config.MemTableType, Config.SkipListDepth, Config.BTreeDegree, Config.MemTableThreshold)
 	TokenBucket := strukture.NewTokenBucket(int(Config.TokenBucketLimitSeconds), int(Config.TokenBucketCapacity))
 	WAL, err1 := strukture.CreateWriteAheadLog(Config.WALSegmentSize)
 	if err1 != nil {
@@ -38,7 +38,7 @@ func (engine *Engine) LoadStructures() bool {
 		WAL:         WAL,
 		TokenBucket: TokenBucket,
 		Cache:       &Cache,
-		MemTable:    Memtable,
+		Mempool:     Mempool,
 		BloomFilter: BloomFilter,
 	}
 
@@ -59,7 +59,7 @@ func (engine *Engine) Put(key string, value []byte) bool {
 		return false
 	}
 
-	err = engine.MemTable.Insert(entry)
+	err = engine.Mempool.Insert(entry)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
@@ -84,7 +84,7 @@ func (engine *Engine) Get(key string) ([]byte, bool) {
 		return value, true
 	}
 
-	if entry := engine.MemTable.Get(key); entry != nil {
+	if entry := engine.Mempool.Find([]byte(key)); entry != nil {
 		return entry.GetValue(), true
 	}
 
@@ -106,19 +106,17 @@ func (engine *Engine) Delete(key string) bool {
 		return false
 	}
 
-	err = engine.MemTable.Insert(entry)
+	err = engine.Mempool.Insert(entry)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
 	}
 
-	// Remove the key from the Cache if it exists
 	if value := engine.Cache.Get([]byte(key)); value != nil {
 		engine.Cache.Remove([]byte(key))
 	}
 
-	// Optionally: Update the Bloom Filter to indicate that the key might be deleted
-	engine.BloomFilter.Insert(key) // This might be used to indicate the key was deleted
+	engine.BloomFilter.Insert(key)
 
 	return true
 }
