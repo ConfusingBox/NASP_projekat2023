@@ -12,25 +12,26 @@ import (
 	"strings"
 )
 
-// func generateUniqueEntries(count int) map[string][]byte {
-// 	entries := make(map[string][]byte)
-// 	for i := 0; i < count; i++ {
-// 		key := fmt.Sprintf("key_%d", i)
-// 		value := fmt.Sprintf("value_%d", i)
-// 		entries[key] = []byte(value)
-// 	}
-// 	return entries
-// }
-// func putManyEntries(engine *Engine, count int) {
-// 	entries := generateUniqueEntries(count)
-// 	for key, value := range entries {
-// 		if engine.Put(key, value) {
-// 			fmt.Printf("Put operation successful for key: %s\n", key)
-// 		} else {
-// 			fmt.Printf("Put operation failed for key: %s\n", key)
-// 		}
-// 	}
-// }
+func generateUniqueEntries(count int) map[string][]byte {
+	entries := make(map[string][]byte)
+	for i := 0; i < count; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		value := fmt.Sprintf("value_%d", i)
+		entries[key] = []byte(value)
+	}
+	return entries
+}
+
+func putManyEntries(engine *Engine, count int) {
+	entries := generateUniqueEntries(count)
+	for key, value := range entries {
+		if engine.Put(key, value) {
+			fmt.Printf("Put operation successful for key: %s\n", key)
+		} else {
+			fmt.Printf("Put operation failed for key: %s\n", key)
+		}
+	}
+}
 
 func probabilisticStructs(config *utils.Config) {
 	bf := strukture.NewBloomFilterWithSize(config.BloomFilterExpectedElements, config.BloomFilterFalsePositiveRate)
@@ -135,8 +136,8 @@ func main() {
 				fmt.Print("Delete operation failed.")
 			}
 		case "4":
-			probabilisticStructs(engine.Config)
-
+			//probabilisticStructs(engine.Config)
+			putManyEntries(&engine, 2000)
 		case "5":
 			// Clear Log
 		case "x":
@@ -218,11 +219,10 @@ func readEntryFromWAL(br *bufio.Reader) (*strukture.Entry, error) {
 	}
 	key := string(keyBytes)
 
-	valueBytes := make([]byte, valueSize)
-	if _, err := io.ReadFull(br, valueBytes); err != nil {
+	value := make([]byte, valueSize)
+	if _, err := io.ReadFull(br, value); err != nil {
 		return nil, err
 	}
-	value := valueBytes
 
 	entry := strukture.CreateEntry(key, value, tombstone)
 	fmt.Println(entry)

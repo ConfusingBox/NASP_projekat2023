@@ -121,7 +121,6 @@ func (engine *Engine) Get(key string, indexDensity int64) ([]byte, bool) {
 			for j = 0; j <= indexDensity; j++ {
 				value, length, err := ReadDataFile(i, dataFileOffset, key)
 				if err != nil {
-					fmt.Println(err)
 					return nil, false
 				}
 
@@ -315,7 +314,7 @@ func ReadDataFile(fileIndex, dataFileOffset int64, searchKey string) ([]byte, in
 	if err != nil {
 		return nil, 0, errors.New("Error opening data file")
 	}
-	tombstone := int64(binary.BigEndian.Uint64(readTombstoneBytes))
+	tombstone := readTombstoneBytes[0]
 
 	// Citaj key size
 	readKeySizeBytes := make([]byte, 8)
@@ -323,15 +322,15 @@ func ReadDataFile(fileIndex, dataFileOffset int64, searchKey string) ([]byte, in
 	if err != nil {
 		return nil, 0, errors.New("Error opening data file")
 	}
-	keySize := int64(binary.BigEndian.Uint64(readKeySizeBytes))
+	keySize := binary.BigEndian.Uint64(readKeySizeBytes)
 
-	// Citaj key size
+	// Citaj value size
 	readValueSizeBytes := make([]byte, 8)
 	_, err = io.ReadFull(br, readValueSizeBytes)
 	if err != nil {
 		return nil, 0, errors.New("Error opening data file")
 	}
-	valueSize := int64(binary.BigEndian.Uint64(readValueSizeBytes))
+	valueSize := binary.BigEndian.Uint64(readValueSizeBytes)
 
 	// Citaj key
 	readKeyBytes := make([]byte, keySize)
@@ -339,7 +338,7 @@ func ReadDataFile(fileIndex, dataFileOffset int64, searchKey string) ([]byte, in
 	if err != nil {
 		return nil, 0, errors.New("Error opening data file")
 	}
-	key := string(binary.BigEndian.Uint64(readKeyBytes))
+	key := string(readKeyBytes)
 
 	// Citaj value
 	value := make([]byte, valueSize)
@@ -349,8 +348,8 @@ func ReadDataFile(fileIndex, dataFileOffset int64, searchKey string) ([]byte, in
 	}
 
 	if key == searchKey && tombstone == 0 {
-		return value, 37 + keySize + valueSize, nil
+		return value, 29 + int64(keySize) + int64(valueSize), nil
 	}
 
-	return nil, 37 + keySize + valueSize, nil
+	return nil, 29 + int64(keySize) + int64(valueSize), nil
 }
