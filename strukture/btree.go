@@ -3,7 +3,6 @@ package strukture
 import (
 	"bytes"
 	"fmt"
-	"time"
 )
 
 // BTreeNode represents a node in the B-Tree.
@@ -424,6 +423,7 @@ func (t *BTree) InOrder(x *BTreeNode) [][2]string {
 	return result
 }
 
+/*
 func TestBTree() {
 	// Create a B-Tree with minimum degree 2 (t=2).
 	bt := NewBTree(2)
@@ -478,3 +478,4 @@ func TestBTree() {
 		fmt.Printf("Key: %s, Value: %s\n", kv[0], kv[1])
 	}
 }
+*/

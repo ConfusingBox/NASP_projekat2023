@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"time"
 )
 
 // SkipListNode represents a node in the SkipList.
@@ -154,10 +153,10 @@ func (s *SkipList) Print() {
 			}
 		}
 	}
-*/
+
 func SkipListMain() {
 	// Create a new SkipList
-	s := NewSkipList(3)
+	s := CreateSkipList(3)
 
 	// Keys and values for testing
 	keys := [][]byte{
@@ -187,7 +186,7 @@ func SkipListMain() {
 	for i, k := range keys {
 		// Add time.Now() as the fourth argument to NewMemtableEntry
 		entry := NewMemtableEntry(k, values[i], false, time.Now())
-		s.Insert(*entry)
+		s.Insert(entry)
 	}
 
 	// Print the SkipList
@@ -213,3 +212,4 @@ func SkipListMain() {
 	fmt.Println("SkipList after deletion:")
 	s.Print()
 }
+*/
