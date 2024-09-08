@@ -1,8 +1,6 @@
 package strukture
 
-import (
-	"errors"
-)
+import "errors"
 
 type Mempool struct {
 	memtableCount       int64
@@ -53,6 +51,11 @@ func (mempool *Mempool) Flush(bloomFilterExpectedElements, indexDensity, summary
 	return nil
 }
 
+// STEFANE URADI OVO
+func (mp *Mempool) Find(key string) *Entry {
+	return nil
+}
+
 /*
 func (mp *Mempool) Exists(key []byte) (bool, int) {
 	for i := 0; i < mp.tableCount; i++ {
@@ -64,7 +67,7 @@ func (mp *Mempool) Exists(key []byte) (bool, int) {
 	return false, -1
 }
 
-/*
+
 func (mp *Mempool) IsFull() bool {
 	for i := 0; i < mp.tableCount; i++ {
 		if !mp.tables[i].IsFull() {

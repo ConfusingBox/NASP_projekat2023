@@ -1,7 +1,6 @@
 package strukture
 
 import (
-	MerkleTree "NASP_projekat2023/strukture/MerkleTree"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -207,16 +206,30 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 	if err != nil {
 		return err
 	}
-
 	dataFile, err := os.OpenFile("./data/data_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
 	filterFile, err := os.OpenFile("./data/filter_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
 	indexFile, err := os.OpenFile("./data/index_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
 	summaryFile, err := os.OpenFile("./data/summary_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
 	metadataFile, err := os.OpenFile("./data/metadata_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
 
 	sortedKeys := memtable.GetSortedEntries()
 	bloomFilter := NewBloomFilterWithSize(bloomFilterExpectedElements, bloomFilterFalsePositiveRate)
-	merkleTree := MerkleTree.NewMerkleTree()
+	merkleTree := NewMerkleTree()
 	indexData := make(map[string]int64)
 	summaryData := make(map[string]int64)
 
@@ -234,7 +247,7 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 		}
 
 		bloomFilter.Insert(key)
-		merkleTree.AddElement(key)
+		merkleTree.AddElement(key, *entry)
 
 		if int64(i)%indexDensity == 0 {
 			indexData[key] = memtableSize

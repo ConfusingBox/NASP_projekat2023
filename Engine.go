@@ -79,17 +79,15 @@ func (engine *Engine) Get(key string) ([]byte, bool) {
 		fmt.Println("Key not found in Bloom Filter")
 		return nil, false
 	}
-
-	if value := engine.Cache.Get([]byte(key)); value != nil {
-		return value, true
-	}
-
 	/*
-		if entry := engine.Mempool.Get(key); entry != nil {
+		if value := engine.Cache.Get(key); value != nil {
+			return value, true
+		}
+
+		if entry := engine.Mempool.Find(key); entry != nil {
 			return entry.GetValue(), true
 		}
 	*/
-
 	fmt.Println("Key not found")
 	return nil, false
 }
@@ -114,13 +112,11 @@ func (engine *Engine) Delete(key string) bool {
 		return false
 	}
 
-	// Remove the key from the Cache if it exists
 	if value := engine.Cache.Get([]byte(key)); value != nil {
 		engine.Cache.Remove([]byte(key))
 	}
 
-	// Optionally: Update the Bloom Filter to indicate that the key might be deleted
-	engine.BloomFilter.Insert(key) // This might be used to indicate the key was deleted
+	engine.BloomFilter.Insert(key)
 
 	return true
 }
