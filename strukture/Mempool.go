@@ -1,5 +1,7 @@
 package strukture
 
+import "errors"
+
 type Mempool struct {
 	memtableCount       int64
 	activeMemtableIndex int64
@@ -17,31 +19,31 @@ func CreateMempool(memtableCount, size, structureUsed, skipListDepth, bTreeDegre
 	return &Mempool{memtableCount, 0, memtables}
 }
 
-func (mempool *Mempool) Insert(entry *Entry) error {
-	//	success := mempool.memtables[mempool.activeMemtableIndex].Insert(entry)
-	//if !success {
-	//	return errors.New("Mempool insert failed.")
-	//}
+func (mempool *Mempool) Insert(entry *Entry, bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree int64, bloomFilterFalsePositiveRate float64) error {
+	success := mempool.memtables[mempool.activeMemtableIndex].Insert(entry)
+	if !success {
+		return errors.New("Mempool insert failed")
+	}
 
-	//if mempool.memtables[mempool.activeMemtableIndex].IsFull() {
-	//if mempool.activeMemtableIndex == mempool.memtableCount {
-	//	mempool.Flush()
-	//} else {
-	//	mempool.activeMemtableIndex++
-	//	}
-	//}
+	if mempool.memtables[mempool.activeMemtableIndex].IsFull() {
+		if mempool.activeMemtableIndex == mempool.memtableCount {
+			mempool.Flush(bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree, bloomFilterFalsePositiveRate)
+		} else {
+			mempool.activeMemtableIndex++
+		}
+	}
 
 	return nil
 }
 
-func (mempool *Mempool) Flush() error {
+func (mempool *Mempool) Flush(bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree int64, bloomFilterFalsePositiveRate float64) error {
 	var i int64
 	for i = 0; i < mempool.memtableCount; i++ {
-		//mempool.memtables[i].Flush()
+		mempool.memtables[i].Flush(bloomFilterExpectedElements, indexDensity, summaryDensity, bloomFilterFalsePositiveRate)
 	}
 
 	for i = 0; i < mempool.memtableCount; i++ {
-		//mempool.memtables[i].Empty()
+		mempool.memtables[i].Empty(skipListDepth, bTreeDegree)
 	}
 
 	mempool.activeMemtableIndex = 0
@@ -50,7 +52,7 @@ func (mempool *Mempool) Flush() error {
 }
 
 // STEFANE URADI OVO
-func (mp *Mempool) Find(key []byte) *Entry {
+func (mp *Mempool) Find(key string) *Entry {
 	return nil
 }
 

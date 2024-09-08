@@ -14,7 +14,7 @@ type BTreeNode struct {
 }
 
 // NewNode creates a new B-Tree node.
-func NewNode(t int64, leaf bool) *BTreeNode {
+func NewBTreeNode(t int64, leaf bool) *BTreeNode {
 	return &BTreeNode{
 		leaf:     leaf,                       // Set whether the node is a leaf node.
 		keys:     make([]string, 0),          // Initialize the keys slice.
@@ -32,8 +32,8 @@ type BTree struct {
 // NewBTree creates a new B-Tree.
 func CreateBTree(t int64) *BTree {
 	return &BTree{
-		root: NewNode(t, false), // Create a new root node which is not a leaf node.
-		t:    t,                 // Set the degree of the B-Tree.
+		root: NewBTreeNode(t, false), // Create a new root node which is not a leaf node.
+		t:    t,                      // Set the degree of the B-Tree.
 	}
 }
 
@@ -58,7 +58,7 @@ func (t *BTree) Insert(entry Entry) (bool, error) {
 	}
 	// If the root is full, split the root and insert the key-value pair
 	if int64(len(root.keys)) == (2*t.t - 1) {
-		temp := NewNode(t.t, false)
+		temp := NewBTreeNode(t.t, false)
 		t.root = temp
 		temp.childPtr = append(temp.childPtr, root)
 		t.splitChild(temp, 0)
@@ -105,7 +105,7 @@ func (t *BTree) insertNonFull(x *BTreeNode, k string, v Entry) {
 			t.insertNonFull(x.childPtr[i], k, v)
 		} else {
 			// Create a new node if x.childPtr[i] does not exist
-			newNode := NewNode(t.t, true)
+			newNode := NewBTreeNode(t.t, true)
 			newNode.keys = append(newNode.keys, k)
 			newNode.values = append(newNode.values, v)
 			x.childPtr = append(x.childPtr, newNode)
@@ -117,7 +117,7 @@ func (t *BTree) insertNonFull(x *BTreeNode, k string, v Entry) {
 func (t *BTree) splitChild(x *BTreeNode, i int) {
 	tt := t.t
 	y := x.childPtr[i]
-	z := NewNode(tt, y.leaf)
+	z := NewBTreeNode(tt, y.leaf)
 	// Update the parent's child pointers and keys
 	x.childPtr = append(x.childPtr, nil)
 	copy(x.childPtr[i+2:], x.childPtr[i+1:])
@@ -215,7 +215,7 @@ func (t *BTree) Delete(k string) bool {
 	if len(t.root.keys) == 0 && len(t.root.childPtr) > 0 {
 		t.root = t.root.childPtr[0]
 	} else if len(t.root.keys) == 0 {
-		t.root = NewNode(t.t, true)
+		t.root = NewBTreeNode(t.t, true)
 	}
 	return true
 }

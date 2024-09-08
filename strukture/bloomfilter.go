@@ -24,12 +24,11 @@ func NewBloomFilterWithSize(expectedElements int64, falsePositiveRate float64) *
 	}
 }
 
-func SerializeBloomFilter(bf *BloomFilter) []byte {
-
+func (bloomFilter *BloomFilter) Serialize() []byte {
 	sizeByteHash := make([]byte, 8)
-	binary.BigEndian.PutUint64(sizeByteHash, uint64(bf.NumHash))
+	binary.BigEndian.PutUint64(sizeByteHash, uint64(bloomFilter.NumHash))
 
-	returnArray := append(sizeByteHash, bf.BitArray...)
+	returnArray := append(sizeByteHash, bloomFilter.BitArray...)
 
 	return returnArray
 }

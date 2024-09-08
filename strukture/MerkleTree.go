@@ -1,7 +1,6 @@
-package MerkleTree
+package strukture
 
 import (
-	"NASP_projekat2023/strukture"
 	"bytes"
 	"crypto/sha1"
 	"encoding/json"
@@ -12,7 +11,7 @@ import (
 
 type MerkleTree struct {
 	root     *Node
-	elements map[string]strukture.Entry
+	elements map[string]Entry
 	leaves   []*Node
 }
 
@@ -28,11 +27,11 @@ func NewNode(data [20]byte) *Node {
 
 func NewMerkleTree() *MerkleTree {
 	return &MerkleTree{
-		elements: make(map[string]strukture.Entry),
+		elements: make(map[string]Entry),
 	}
 }
 
-func (mr *MerkleTree) AddElement(key string, entry strukture.Entry) {
+func (mr *MerkleTree) AddElement(key string, entry Entry) {
 	mr.elements[key] = entry
 }
 
@@ -53,7 +52,7 @@ func (mr *MerkleTree) CreateTree(filePath string) {
 		panic(err)
 	}
 
-	var fileEntries map[string]strukture.Entry
+	var fileEntries map[string]Entry
 	err = json.Unmarshal(content, &fileEntries)
 	if err != nil {
 		panic(err)
@@ -105,7 +104,7 @@ func (mr *MerkleTree) buildInternalNodes() {
 	mr.root = queue[0]
 }
 
-func (mr *MerkleTree) VerifyTree(newElements map[string]strukture.Entry) ([]string, error) {
+func (mr *MerkleTree) VerifyTree(newElements map[string]Entry) ([]string, error) {
 	newTree := NewMerkleTree()
 	for key, entry := range newElements {
 		newTree.AddElement(key, entry)
@@ -136,21 +135,24 @@ func compareNodes(oldNode, newNode *Node) []string {
 	return changes
 }
 
-func (mr *MerkleTree) SerializeTree() ([]byte, error) {
+func (mr *MerkleTree) SerializeTree() []byte {
 	treeData := struct {
-		Elements map[string]strukture.Entry `json:"elements"`
-		Root     *Node                      `json:"root"`
+		Elements map[string]Entry `json:"elements"`
+		Root     *Node            `json:"root"`
 	}{
 		Elements: mr.elements,
 		Root:     mr.root,
 	}
-	return json.Marshal(treeData)
+
+	data, _ := json.Marshal(treeData)
+
+	return data
 }
 
 func ReconstructTree(data []byte) *MerkleTree {
 	var treeData struct {
-		Elements map[string]strukture.Entry `json:"elements"`
-		Root     *Node                      `json:"root"`
+		Elements map[string]Entry `json:"elements"`
+		Root     *Node            `json:"root"`
 	}
 	err := json.Unmarshal(data, &treeData)
 	if err != nil {

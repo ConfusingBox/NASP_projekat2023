@@ -59,7 +59,7 @@ func (engine *Engine) Put(key string, value []byte) bool {
 		return false
 	}
 
-	err = engine.Mempool.Insert(entry)
+	err = engine.Mempool.Insert(entry, engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
@@ -79,15 +79,15 @@ func (engine *Engine) Get(key string) ([]byte, bool) {
 		fmt.Println("Key not found in Bloom Filter")
 		return nil, false
 	}
+	/*
+		if value := engine.Cache.Get(key); value != nil {
+			return value, true
+		}
 
-	if value := engine.Cache.Get([]byte(key)); value != nil {
-		return value, true
-	}
-
-	if entry := engine.Mempool.Find([]byte(key)); entry != nil {
-		return entry.GetValue(), true
-	}
-
+		if entry := engine.Mempool.Find(key); entry != nil {
+			return entry.GetValue(), true
+		}
+	*/
 	fmt.Println("Key not found")
 	return nil, false
 }
@@ -106,7 +106,7 @@ func (engine *Engine) Delete(key string) bool {
 		return false
 	}
 
-	err = engine.Mempool.Insert(entry)
+	err = engine.Mempool.Insert(entry, engine.Config.BloomFilterExpectedElements, engine.Config.IndexDensity, engine.Config.SummaryDensity, engine.Config.SkipListDepth, engine.Config.BTreeDegree, engine.Config.BloomFilterFalsePositiveRate)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
