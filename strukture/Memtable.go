@@ -100,6 +100,8 @@ func (memtable *Memtable) Empty(skipListDepth, bTreeDegree int64) {
 	memtable.hashMap = make(map[string]Entry)
 	memtable.skipList = CreateSkipList(skipListDepth)
 	memtable.bTree = CreateBTree(bTreeDegree)
+
+	memtable.currentSize = 0
 }
 
 func (memtable *Memtable) IsFull() bool {
@@ -127,6 +129,7 @@ func (memtable *Memtable) GetSortedEntries() []string {
 			entries = append(entries, value[0])
 		}
 	}
+
 	slices.Sort(entries)
 
 	return entries
@@ -138,14 +141,14 @@ func GetSSTableIndex() (int64, error) {
 	fileTypes := []string{"data", "filter", "index", "summary", "metadata"}
 
 	for _, fileType := range fileTypes {
-		err := os.MkdirAll("data/"+fileType, os.ModePerm)
+		err := os.MkdirAll("./data/"+fileType, os.ModePerm)
 		if err != nil {
 			return 0, err
 		}
 	}
 
 	for _, fileType := range fileTypes {
-		files, _ := os.ReadDir("./data" + fileType)
+		files, _ := os.ReadDir("./data/" + fileType)
 
 		for _, file := range files {
 			fileName := file.Name()
@@ -161,16 +164,15 @@ func GetSSTableIndex() (int64, error) {
 	if maxIndex == -1 {
 		return 0, nil
 	}
-	return maxIndex, nil
+	return maxIndex + 1, nil
 }
 
 func CreateFiles(fileIndex int64) error {
-	dataFilePath := "./data/data_" + fmt.Sprint(fileIndex) + ".bin"
-	filterFilePath := "./data/filter_" + fmt.Sprint(fileIndex) + ".bin"
-	indexFilePath := "./data/index_" + fmt.Sprint(fileIndex) + ".bin"
-	summaryFilePath := "./data/summary_" + fmt.Sprint(fileIndex) + ".bin"
-	metadataFilePath := "./data/metadata_" + fmt.Sprint(fileIndex) + ".bin"
-	// sstableFilePath := "./data/sstable" + fmt.Sprint(lsmLevel) + "_" + fmt.Sprint(index) + ".db"
+	dataFilePath := "./data/data/data_" + fmt.Sprint(fileIndex) + ".bin"
+	filterFilePath := "./data/filter/filter_" + fmt.Sprint(fileIndex) + ".bin"
+	indexFilePath := "./data/index/index_" + fmt.Sprint(fileIndex) + ".bin"
+	summaryFilePath := "./data/summary/summary_" + fmt.Sprint(fileIndex) + ".bin"
+	metadataFilePath := "./data/metadata/metadata_" + fmt.Sprint(fileIndex) + ".bin"
 
 	_, err := os.Create(dataFilePath)
 	if err != nil {
@@ -206,23 +208,23 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 	if err != nil {
 		return err
 	}
-	dataFile, err := os.OpenFile("./data/data_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	dataFile, err := os.OpenFile("./data/data/data_"+fmt.Sprint(fileIndex)+".bin", os.O_APPEND, 0777)
 	if err != nil {
 		return err
 	}
-	filterFile, err := os.OpenFile("./data/filter_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	filterFile, err := os.OpenFile("./data/filter/filter_"+fmt.Sprint(fileIndex)+".bin", os.O_APPEND, 0777)
 	if err != nil {
 		return err
 	}
-	indexFile, err := os.OpenFile("./data/index_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	indexFile, err := os.OpenFile("./data/index/index_"+fmt.Sprint(fileIndex)+".bin", os.O_APPEND, 0777)
 	if err != nil {
 		return err
 	}
-	summaryFile, err := os.OpenFile("./data/summary_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	summaryFile, err := os.OpenFile("./data/summary/summary_"+fmt.Sprint(fileIndex)+".bin", os.O_APPEND, 0777)
 	if err != nil {
 		return err
 	}
-	metadataFile, err := os.OpenFile("./data/metadata_"+fmt.Sprint(fileIndex)+".bin", os.O_RDWR, 0777)
+	metadataFile, err := os.OpenFile("./data/metadata/metadata_"+fmt.Sprint(fileIndex)+".bin", os.O_APPEND, 0777)
 	if err != nil {
 		return err
 	}
@@ -305,13 +307,13 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 	for _, key := range sortedSummaryKeys {
 		writeToSummary := make([]byte, 8)
 		binary.BigEndian.PutUint64(writeToSummary, uint64(len(key)))
-		indexFile.Write(writeToSummary)
+		summaryFile.Write(writeToSummary)
 
-		indexFile.Write([]byte(key))
+		summaryFile.Write([]byte(key))
 
 		writeToSummary = make([]byte, 8)
 		binary.BigEndian.PutUint64(writeToSummary, uint64(summaryData[key]))
-		indexFile.Write(writeToSummary)
+		summaryFile.Write(writeToSummary)
 	}
 
 	// Serialize metadata

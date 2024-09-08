@@ -1,6 +1,8 @@
 package strukture
 
-import "errors"
+import (
+	"errors"
+)
 
 type Mempool struct {
 	memtableCount       int64
@@ -26,7 +28,7 @@ func (mempool *Mempool) Insert(entry *Entry, bloomFilterExpectedElements, indexD
 	}
 
 	if mempool.memtables[mempool.activeMemtableIndex].IsFull() {
-		if mempool.activeMemtableIndex == mempool.memtableCount {
+		if mempool.activeMemtableIndex >= mempool.memtableCount-1 {
 			mempool.Flush(bloomFilterExpectedElements, indexDensity, summaryDensity, skipListDepth, bTreeDegree, bloomFilterFalsePositiveRate)
 		} else {
 			mempool.activeMemtableIndex++

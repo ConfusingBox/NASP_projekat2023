@@ -48,6 +48,26 @@ func probabilisticStructs(config *utils.Config) {
 	}
 }
 
+func generateUniqueEntries(count int) map[string][]byte {
+	entries := make(map[string][]byte)
+	for i := 0; i < count; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		value := fmt.Sprintf("value_%d", i)
+		entries[key] = []byte(value)
+	}
+	return entries
+}
+func putManyEntries(engine *Engine, count int) {
+	entries := generateUniqueEntries(count)
+	for key, value := range entries {
+		if engine.Put(key, value) {
+			fmt.Printf("Put operation successful for key: %s\n", key)
+		} else {
+			fmt.Printf("Put operation failed for key: %s\n", key)
+		}
+	}
+}
+
 func main() {
 	engine := Engine{}
 	engine.LoadStructures()
@@ -107,6 +127,7 @@ func main() {
 				fmt.Print("Delete operation failed.")
 			}
 		case "4":
+			putManyEntries(&engine, 4500)
 			// probabilisticStructs(config)
 		case "5":
 			// Clear Log
