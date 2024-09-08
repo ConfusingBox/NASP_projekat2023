@@ -3,6 +3,7 @@ package strukture
 import (
 	"bytes"
 	"fmt"
+	"time"
 )
 
 // BTreeNode represents a node in the B-Tree.
@@ -417,12 +418,63 @@ func (t *BTree) InOrder(x *BTreeNode) [][2][]byte {
 		}
 		if !x.leaf {
 			// If the node is not a leaf, recurse on the last child pointer
-			result = append(result, t.InOrder(x.childPtr[len(x.keys)])...)
+			result = append(result, t.InOrder(x.childPtr[len(x.childPtr)-1])...)
 		}
 	}
 	return result
 }
 
-// func main() {
+func TestBTree() {
+	// Create a B-Tree with minimum degree 2 (t=2).
+	bt := NewBTree(2)
 
-// }
+	// Insert some entries into the B-Tree.
+	entries := []MemtableEntry{
+		{Key: []byte("a"), Value: []byte("apple"), Timestamp: time.Now(), Tombstone: false},
+		{Key: []byte("b"), Value: []byte("banana"), Timestamp: time.Now(), Tombstone: false},
+		{Key: []byte("c"), Value: []byte("cherry"), Timestamp: time.Now(), Tombstone: false},
+		{Key: []byte("d"), Value: []byte("date"), Timestamp: time.Now(), Tombstone: false},
+		{Key: []byte("e"), Value: []byte("elderberry"), Timestamp: time.Now(), Tombstone: false},
+	}
+
+	fmt.Println("Inserting elements:")
+	for _, entry := range entries {
+		err := bt.Insert(entry)
+		if err != nil {
+			fmt.Printf("Error inserting %s: %v\n", entry.Key, err)
+		}
+	}
+
+	// Print the B-Tree structure.
+	fmt.Println("B-Tree structure after inserts:")
+	bt.PrintTree(bt.root, 0) // Access the root field directly
+
+	// Search for a key.
+	searchKey := []byte("c")
+	entry, found := bt.Search(searchKey)
+	if found {
+		fmt.Printf("Found entry for key '%s': Value: %s, Timestamp: %v\n", searchKey, entry.Value, entry.Timestamp)
+	} else {
+		fmt.Printf("Key '%s' not found in B-Tree.\n", searchKey)
+	}
+
+	// Delete a key.
+	deleteKey := []byte("b")
+	deleted := bt.Delete(deleteKey)
+	if deleted {
+		fmt.Printf("Key '%s' deleted successfully.\n", deleteKey)
+	} else {
+		fmt.Printf("Key '%s' not found for deletion.\n", deleteKey)
+	}
+
+	// Print the B-Tree after deletion.
+	fmt.Println("B-Tree structure after deletion:")
+	bt.PrintTree(bt.root, 0) // Access the root field directly
+
+	// Perform in-order traversal and print the results.
+	fmt.Println("In-order traversal:")
+	inOrderResult := bt.InOrder(bt.root) // Access the root field directly
+	for _, kv := range inOrderResult {
+		fmt.Printf("Key: %s, Value: %s\n", kv[0], kv[1])
+	}
+}

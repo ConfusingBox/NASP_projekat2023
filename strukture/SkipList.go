@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 // SkipListNode represents a node in the SkipList.
@@ -104,108 +105,110 @@ func (s *SkipList) Print() {
 }
 
 /*
-func SkipListMenu(s *SkipList) {
-	scanner := bufio.NewScanner(os.Stdin)
+	func SkipListMenu(s *SkipList) {
+		scanner := bufio.NewScanner(os.Stdin)
 
-	for {
-		fmt.Println("1. Ubacite element")
-		fmt.Println("2. Pretražite element")
-		fmt.Println("3. Izbrišite element")
-		fmt.Println("4. Prikaži skiplist-u")
-		fmt.Println("x. Izlaz")
-		fmt.Print("Unesite opciju: ")
+		for {
+			fmt.Println("1. Ubacite element")
+			fmt.Println("2. Pretražite element")
+			fmt.Println("3. Izbrišite element")
+			fmt.Println("4. Prikaži skiplist-u")
+			fmt.Println("x. Izlaz")
+			fmt.Print("Unesite opciju: ")
 
-		choice := strings.TrimSpace(scanner.Text())
+			choice := strings.TrimSpace(scanner.Text())
 
-		switch choice {
-		case "1":
-			fmt.Print("Unesite ključ: ")
-			key := scanner.Text()
+			switch choice {
+			case "1":
+				fmt.Print("Unesite ključ: ")
+				key := scanner.Text()
 
-			fmt.Print("Unesite vrednost: ")
-			value := scanner.Text()
+				fmt.Print("Unesite vrednost: ")
+				value := scanner.Text()
 
-			entry := NewMemtableEntry([]byte(key), []byte(value), false)
-			s.Insert(*entry)
-		case "2":
-			fmt.Print("Upišite ključ za pretragu: ")
-			key := scanner.Text()
+				entry := NewMemtableEntry([]byte(key), []byte(value), false)
+				s.Insert(*entry)
+			case "2":
+				fmt.Print("Upišite ključ za pretragu: ")
+				key := scanner.Text()
 
-			node := s.Search([]byte(key))
-			if node != nil {
-				fmt.Printf("Ključ %s sa vrednošću %s\n", node.Key, node.Value)
-			} else {
-				fmt.Printf("Ključ %s nije pronađen\n", key)
+				node := s.Search([]byte(key))
+				if node != nil {
+					fmt.Printf("Ključ %s sa vrednošću %s\n", node.Key, node.Value)
+				} else {
+					fmt.Printf("Ključ %s nije pronađen\n", key)
+				}
+			case "3":
+				fmt.Print("Unesite ključ za brisanje: ")
+				key := scanner.Text()
+
+				s.Delete([]byte(key))
+				fmt.Printf("Ključ %s je izbrisan.\n", key)
+			case "4":
+				s.Print()
+			case "5":
+				return
+			default:
+				fmt.Println("Pogrešna opcija, pokušajte ponovo")
 			}
-		case "3":
-			fmt.Print("Unesite ključ za brisanje: ")
-			key := scanner.Text()
-
-			s.Delete([]byte(key))
-			fmt.Printf("Ključ %s je izbrisan.\n", key)
-		case "4":
-			s.Print()
-		case "5":
-			return
-		default:
-			fmt.Println("Pogrešna opcija, pokušajte ponovo")
 		}
 	}
-}
 */
-// func main() {
-// 	// Create a new SkipList
-// 	s := NewSkipList(3)
+func SkipListMain() {
+	// Create a new SkipList
+	s := NewSkipList(3)
 
-// 	// Keys and values for testing
-// 	keys := [][]byte{
-// 		[]byte("a"),
-// 		[]byte("b"),
-// 		[]byte("c"),
-// 		[]byte("d"),
-// 		[]byte("e"),
-// 		[]byte("f"),
-// 		[]byte("g"),
-// 		[]byte("h"),
-// 		[]byte("i"),
-// 	}
-// 	values := [][]byte{
-// 		[]byte("1"),
-// 		[]byte("2"),
-// 		[]byte("3"),
-// 		[]byte("4"),
-// 		[]byte("5"),
-// 		[]byte("6"),
-// 		[]byte("7"),
-// 		[]byte("8"),
-// 		[]byte("9"),
-// 	}
+	// Keys and values for testing
+	keys := [][]byte{
+		[]byte("a"),
+		[]byte("b"),
+		[]byte("c"),
+		[]byte("d"),
+		[]byte("e"),
+		[]byte("f"),
+		[]byte("g"),
+		[]byte("h"),
+		[]byte("i"),
+	}
+	values := [][]byte{
+		[]byte("1"),
+		[]byte("2"),
+		[]byte("3"),
+		[]byte("4"),
+		[]byte("5"),
+		[]byte("6"),
+		[]byte("7"),
+		[]byte("8"),
+		[]byte("9"),
+	}
 
-// 	// Insert keys and values into the SkipList
-// 	for i, k := range keys {
-// 		s.Insert(k, values[i])
-// 	}
+	// Insert keys and values into the SkipList
+	for i, k := range keys {
+		// Add time.Now() as the fourth argument to NewMemtableEntry
+		entry := NewMemtableEntry(k, values[i], false, time.Now())
+		s.Insert(*entry)
+	}
 
-// 	// Print the SkipList
-// 	fmt.Println("SkipList after insertion:")
-// 	s.Print()
+	// Print the SkipList
+	fmt.Println("SkipList after insertion:")
+	s.Print()
 
-// 	// Search for keys in the SkipList
-// 	for _, k := range keys {
-// 		node := s.Search(k)
-// 		if node != nil {
-// 			fmt.Printf("Key %s found, value: %s\n", node.key, node.value)
-// 		} else {
-// 			fmt.Printf("Key %s not found\n", k)
-// 		}
-// 	}
+	// Search for keys in the SkipList
+	for _, k := range keys {
+		node := s.Get(k)
+		if node != nil {
+			fmt.Printf("Key %s found, value: %s\n", string(node.Key), string(node.Value))
+		} else {
+			fmt.Printf("Key %s not found\n", string(k))
+		}
+	}
 
-// 	// Delete keys from the SkipList
-// 	for _, k := range keys {
-// 		s.Delete(k)
-// 	}
+	// Delete keys from the SkipList
+	for _, k := range keys {
+		s.Delete(k)
+	}
 
-// 	// Print the SkipList after deletion
-// 	fmt.Println("SkipList after deletion:")
-// 	s.Print()
-// }
+	// Print the SkipList after deletion
+	fmt.Println("SkipList after deletion:")
+	s.Print()
+}
