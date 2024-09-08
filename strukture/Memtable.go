@@ -277,13 +277,13 @@ func (memtable *Memtable) Flush(bloomFilterExpectedElements, indexDensity, summa
 	for key := range indexData {
 		sortedIndexKeys = append(sortedIndexKeys, key)
 	}
-	//sort.Strings(sortedIndexKeys)
+	sort.Strings(sortedIndexKeys)
 
 	for i, key := range sortedIndexKeys {
 		if int64(i)%summaryDensity == 0 {
 			summaryData[key] = indexSize
 		}
-		indexSize += 2 + int64(len(key))
+		indexSize += 16 + int64(len(key))
 
 		writeToIndex := make([]byte, 8)
 		binary.BigEndian.PutUint64(writeToIndex, uint64(len(key)))
