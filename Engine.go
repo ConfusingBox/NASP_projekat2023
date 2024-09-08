@@ -3,7 +3,10 @@ package main
 import (
 	"NASP_projekat2023/strukture"
 	"NASP_projekat2023/utils"
+	"bufio"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -90,6 +93,12 @@ func (engine *Engine) Get(key string) ([]byte, bool) {
 		return nil, false
 	}
 
+	offset, err := findOffsetInSummaryFile("data/summary_0.bin", key)
+	if err != nil {
+		fmt.Println("Error finding offset:", err)
+		return nil, false
+	}
+	fmt.Println(offset)
 	fmt.Println("Key not found")
 	return nil, false
 }
@@ -147,4 +156,67 @@ func loadBloomFilterFromFile(filename string) (*strukture.BloomFilter, error) {
 	}
 
 	return bloomFilter, nil
+}
+
+func findOffsetInSummaryFile(filename string, searchKey string) (int64, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	br := bufio.NewReader(file)
+
+	var previousKey string
+	var previousOffset int64
+
+	for {
+		// Citaj za duzinu kljuca
+		keyLengthBytes := make([]byte, 8)
+		_, err := io.ReadFull(br, keyLengthBytes)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return 0, err
+		}
+		keyLength := binary.BigEndian.Uint64(keyLengthBytes)
+
+		// Iscitaj kljuc
+		keyBytes := make([]byte, keyLength)
+		_, err = io.ReadFull(br, keyBytes)
+		if err != nil {
+			return 0, err
+		}
+		key := string(keyBytes)
+
+		// Iscitaj sledecih 8 za offset
+		offsetBytes := make([]byte, 8)
+		_, err = io.ReadFull(br, offsetBytes)
+		if err != nil {
+			return 0, err
+		}
+		currentOffset := int64(binary.BigEndian.Uint64(offsetBytes))
+
+		// Da li je key matching
+		if key == searchKey {
+			return currentOffset, nil
+		}
+
+		// Ako nije, nego je pretrazeni veci od onog kojeg zelimo, onda vracamo offset proslog
+		if searchKey < key {
+			if previousKey != "" {
+				return previousOffset, nil
+			}
+		}
+
+		previousKey = key
+		previousOffset = currentOffset
+	}
+
+	if previousKey != "" {
+		return previousOffset, nil
+	}
+
+	return 0, fmt.Errorf("key %s not found", searchKey)
 }
