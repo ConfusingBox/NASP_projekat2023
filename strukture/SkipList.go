@@ -57,7 +57,7 @@ func (s *SkipList) Insert(entry MemtableEntry) {
 
 // Search searches for a key in the SkipList.
 // It returns the node containing the key if it exists, otherwise it returns nil.
-func (s *SkipList) Search(key []byte) *MemtableEntry {
+func (s *SkipList) Get(key []byte) *MemtableEntry {
 	for node := s.head; node != nil; node = node.down {
 		for node.right != nil && bytes.Compare(node.right.key, key) <= 0 {
 			node = node.right
